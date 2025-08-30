@@ -42,22 +42,27 @@ function App() {
       <Router>
         <Navbar user={user} isAdmin={isAdmin} darkMode={darkMode} setDarkMode={setDarkMode} onLogout={handleLogout} />
         <main className="container mx-auto p-4">
+        
           <Routes>
+            {/* ... (المسارات الأخرى) ... */}
             <Route path="/" element={<Home user={user} tweets={tweets} setTweets={setTweets} />} />
             <Route path="/login" element={<Login setUser={setUser} setIsAdmin={setIsAdmin} />} />
             <Route path="/register" element={<Register setUser={setUser} />} />
-            <Route path="/forgot-password" element={<ForgotPassword />} />
-            <Route path="/profile" element={<Profile user={user} tweets={tweets} />} />
+
+            {/* ✅ --- التصحيح هنا: تمرير setTweets و tweets إلى Profile --- ✅ */}
+            <Route 
+              path="/profile" 
+              element={<Profile user={user} tweets={tweets} setTweets={setTweets} />} 
+            />
+
             <Route path="/settings" element={<Settings user={user} onLogout={handleLogout} />} />
-            {/* ✅ --- تعديل: تمرير tweets و deleteTweet إلى صفحة المدير --- */}
             <Route 
               path="/reports" 
-              element={<AdminPage user={user} isAdmin={isAdmin} tweets={tweets} deleteTweet={deleteTweet} />} 
+              element={<AdminPage user={user} isAdmin={isAdmin} deleteTweet={deleteTweet} />} 
             />
-            {/* ✅ --- تعديل: تمرير deleteTweet إلى صفحة تفاصيل التغريدة --- */}
             <Route 
               path="/tweet/:id" 
-              element={<TweetDetail user={user} tweets={tweets} deleteTweet={deleteTweet} isAdmin={isAdmin} />} 
+              element={<TweetDetail user={user} tweets={tweets} setTweets={setTweets} deleteTweet={deleteTweet} isAdmin={isAdmin} />} 
             />
             <Route path="*" element={<div className="text-center py-10"><h2>404 - الصفحة غير موجودة</h2></div>} />
           </Routes>
