@@ -3,11 +3,11 @@ import axios from 'axios';
 
 // ✅ !! مهم جدًا: عدّل هذا الرابط إلى رابط الخادم الحقيقي الخاص بك !!
 const api = axios.create({
-  baseURL: 'http://localhost:8000/api', // مثال لخادم محلي
+  baseURL: 'http://127.0.0.1:8000/api', // مثال لخادم محلي
   headers: {
     'Content-Type': 'application/json',
     'Accept': 'application/json',
-  },
+  },  withCredentials: true, 
 } );
 
 // دالة لضبط التوكن في الهيدر
