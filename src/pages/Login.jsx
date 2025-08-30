@@ -1,37 +1,83 @@
-// src/pages/Login.js
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
-import api from '../api/api';
- // ✅ استيراد api
+import { Link, useNavigate } from "react-router-dom";
 
-export default function Login({ onLogin }) {
+export default function Login({ setUser, setIsAdmin }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [error, setError] = useState("");
   const navigate = useNavigate();
 
-  const handleLoginSubmit = async (e) => {
+  const handleLoginSubmit = (e) => {
     e.preventDefault();
-    setError("");
-    try {
-      const response = await api.post('/login', { email, password });
-      onLogin(response.data.user, response.data.token);
-      navigate("/");
-    } catch (err) {
-      setError("فشل تسجيل الدخول. يرجى التحقق من بريدك الإلكتروني وكلمة المرور.");
-      console.error(err);
+    if (email === "admin@demo.com") {
+      setUser({ name: "Admin", email });
+      setIsAdmin(true);
+    } else {
+      setUser({ name: "Basel", email });
+      setIsAdmin(false);
     }
+    navigate("/");
   };
 
   return (
-    <div className="flex justify-center items-center pt-16">
-      <form className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md w-full max-w-sm" onSubmit={handleLoginSubmit}>
-        <h2 className="text-2xl mb-4 text-center font-bold text-black dark:text-white">تسجيل الدخول</h2>
-        {error && <p className="bg-red-500 text-white p-2 rounded mb-4">{error}</p>}
-        {/* ... حقول الإدخال ... */}
-        <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} className="w-full p-2 mb-4 border rounded bg-gray-100 dark:bg-gray-700" required />
-        <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} className="w-full p-2 mb-4 border rounded bg-gray-100 dark:bg-gray-700" required />
-        <button type="submit" className="w-full bg-blue-500 text-white py-2 rounded">تسجيل الدخول</button>
+    <div className="flex justify-center items-center pt-10 sm:pt-16">
+      <form 
+        // ✅ فورم متوافق: خلفية بيضاء في الوضع الفاتح، ورمادية داكنة في المظلم
+        className="bg-white dark:bg-gray-800 p-6 sm:p-8 rounded-xl shadow-lg w-full max-w-sm" 
+        onSubmit={handleLoginSubmit}
+      >
+        <h2 className="text-2xl sm:text-3xl mb-6 text-center font-bold text-gray-800 dark:text-white">
+          تسجيل الدخول
+        </h2>
+        
+        <div className="mb-4">
+          <label htmlFor="email" className="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">
+            البريد الإلكتروني
+          </label>
+          <input 
+            id="email"
+            type="email" 
+            placeholder="example@email.com"
+            value={email} 
+            onChange={(e) => setEmail(e.target.value)} 
+            // ✅ حقل إدخال متوافق: نص أسود في الفاتح، وأبيض في المظلم
+            className="w-full p-3 border rounded-lg bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-blue-500 focus:outline-none" 
+            required 
+          />
+        </div>
+
+        <div className="mb-6">
+          <label htmlFor="password" className="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">
+            كلمة المرور
+          </label>
+          <input 
+            id="password"
+            type="password" 
+            placeholder="••••••••"
+            value={password} 
+            onChange={(e) => setPassword(e.target.value)} 
+            className="w-full p-3 border rounded-lg bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-blue-500 focus:outline-none" 
+            required 
+          />
+        </div>
+
+        <button 
+          type="submit" 
+          className="w-full bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 transition-colors duration-300"
+        >
+          تسجيل الدخول
+        </button>
+
+        <div className="text-center mt-6 text-sm space-y-2">
+          <Link to="/forgot-password" className="text-blue-500 hover:underline">
+            نسيت كلمة المرور؟
+          </Link>
+          <p className="text-gray-600 dark:text-gray-400">
+            ليس لديك حساب؟ 
+            <Link to="/register" className="font-semibold text-blue-500 hover:underline mr-1">
+              سجل الآن
+            </Link>
+          </p>
+        </div>
       </form>
     </div>
   );

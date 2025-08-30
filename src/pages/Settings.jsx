@@ -1,52 +1,60 @@
-// src/pages/Settings.js
+// src/pages/Settings.jsx
+
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 
-// ✅ استقبال onLogout
-export default function Settings({ user, setUser, onLogout, darkMode }) {
+// ✅ 1. استقبال onLogout كـ prop
+export default function Settings({ user, onLogout }) {
   const [name, setName] = useState(user?.name || "");
   const [email, setEmail] = useState(user?.email || "");
   const navigate = useNavigate();
 
-  const handleSave = (e) => {
-    e.preventDefault();
-    const updatedUser = { ...user, name, email };
-    setUser(updatedUser);
-    // ✅ تحديث localStorage أيضًا عند تعديل البيانات
-    localStorage.setItem('user', JSON.stringify(updatedUser));
-    alert("تم حفظ التعديلات!");
-  };
-
-  const handleLogoutClick = () => {
-    onLogout(); // ✅ استدعاء دالة تسجيل الخروج من App.js
-    navigate("/login");
-  };
-
   if (!user) {
-    navigate("/login");
+    // إعادة التوجيه إذا لم يكن المستخدم مسجلاً
+    navigate('/login');
     return null;
   }
-  
-  // ... باقي الكود (جزء التصميم) لا يتغير ...
-  const inputClass = "w-full p-2 mb-4 border rounded bg-gray-100 dark:bg-gray-700 text-black dark:text-white border-gray-300 dark:border-gray-600";
+
+  const handleSave = (e) => {
+    e.preventDefault();
+    alert("تم حفظ الإعدادات (وهمي)!");
+  };
+
+  // ✅ 2. استدعاء onLogout عند الضغط على الزر
+  const handleLogoutClick = () => {
+    if (onLogout) {
+      onLogout();
+      navigate('/login'); // توجيه المستخدم لصفحة الدخول بعد الخروج
+    }
+  };
 
   return (
-    <div className="max-w-md mx-auto">
-      <div className="bg-white dark:bg-gray-800 p-8 rounded-lg shadow-md">
-        <h2 className="text-2xl mb-6 font-bold text-center text-black dark:text-white">إعدادات الحساب</h2>
-        <form onSubmit={handleSave}>
-          <label className="block mb-2 text-black dark:text-white">الاسم</label>
-          <input type="text" value={name} onChange={(e) => setName(e.target.value)} className={inputClass} required />
-          <label className="block mb-2 text-black dark:text-white">البريد الإلكتروني</label>
-          <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} className={inputClass} required />
-          <button type="submit" className="w-full bg-blue-500 text-white py-2 rounded-lg mb-2 hover:bg-blue-600">
+    <div className="max-w-2xl mx-auto">
+      <form onSubmit={handleSave} className="bg-white dark:bg-gray-800 p-6 sm:p-8 rounded-xl shadow-lg">
+        <h2 className="text-2xl sm:text-3xl mb-6 font-bold text-gray-800 dark:text-white">
+          إعدادات الحساب
+        </h2>
+        
+        <div className="mb-4">
+          <label htmlFor="name" className="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">الاسم</label>
+          <input id="name" type="text" value={name} onChange={(e) => setName(e.target.value)} className="w-full p-3 border rounded-lg bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white border-gray-300 dark:border-gray-600" />
+        </div>
+
+        <div className="mb-6">
+          <label htmlFor="email" className="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">البريد الإلكتروني</label>
+          <input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} className="w-full p-3 border rounded-lg bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white border-gray-300 dark:border-gray-600" />
+        </div>
+
+        <div className="flex flex-col sm:flex-row gap-3">
+          <button type="submit" className="w-full bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 transition-colors">
             حفظ التعديلات
           </button>
-        </form>
-        <button onClick={handleLogoutClick} className="w-full bg-red-500 text-white py-2 rounded-lg mt-4 hover:bg-red-600">
-          تسجيل الخروج
-        </button>
-      </div>
+          {/* ✅ 3. ربط الزر بالدالة الصحيحة */}
+          <button type="button" onClick={handleLogoutClick} className="w-full bg-red-600 text-white py-3 rounded-lg font-semibold hover:bg-red-700 transition-colors">
+            تسجيل الخروج
+          </button>
+        </div>
+      </form>
     </div>
   );
 }
