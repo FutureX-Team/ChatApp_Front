@@ -19,11 +19,11 @@ export default function Tweet({ tweet, currentUser }) {
 
   return (
     <>
-      <div 
-        onClick={() => navigate(`/tweet/${tweet.id}`)} 
-        // ✅ تعديل خلفية ولون نص التغريدة
-        className="bg-white dark:bg-gray-800 text-black dark:text-white p-4 rounded-xl shadow-md cursor-pointer"
-      >
+     <div 
+  onClick={() => navigate(`/tweet/${tweet.id}`)} 
+  className="bg-white dark:bg-gray-800 text-black dark:text-white p-4 rounded-xl shadow-md cursor-pointer"
+>
+
         <div className="flex items-start">
           <Avatar name={tweet.user.name} />
           <div className="flex-1 ml-3">

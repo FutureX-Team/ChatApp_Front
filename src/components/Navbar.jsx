@@ -43,8 +43,8 @@ export default function Navbar({ user, isAdmin, darkMode, setDarkMode, onLogout 
           </button>
 
           {isAdmin && (
-            <Link to="/reports" className="px-3 py-2 bg-red-500 text-white rounded-lg text-sm font-bold hover:bg-red-600">
-              البلاغات
+            <Link to="/reports" className="px-3 py-2 bg-blue-500 text-white rounded-lg text-sm font-bold hover:bg-blue-600">
+              لوحة التحكم
             </Link>
           )}
 
