@@ -68,7 +68,7 @@ export default function Login({ setUser, setIsAdmin }) {
         </button>
 
         <div className="text-center mt-6 text-sm space-y-2">
-          <Link to="/forgot-password" className="text-blue-500 hover:underline">
+          <Link to="/forgotpassword" className="text-blue-500 hover:underline">
             نسيت كلمة المرور؟
           </Link>
           <p className="text-gray-600 dark:text-gray-400">
