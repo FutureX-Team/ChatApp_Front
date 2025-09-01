@@ -1,7 +1,6 @@
 // src/App.jsx
 import { useEffect, useState } from "react";
 import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
-
 import Navbar from "./components/Navbar";
 import Home from "./pages/Home";
 import Login from "./pages/Login";
@@ -11,118 +10,102 @@ import Profile from "./pages/Profile";
 import Settings from "./pages/Settings";
 import AdminPage from "./pages/AdminPage";
 import TweetDetail from "./pages/TweetDetail";
+import api, { setAuthToken, rehydrateAuth } from "./api/api";
 
-import api, { setAuthToken } from "./api/api";
-
-function App() {
+export default function App() {
   const [darkMode, setDarkMode] = useState(false);
-  const [user, setUser] = useState(null);
-  const [isAdmin, setIsAdmin] = useState(false);
+
+  // ابدأ بالمخزن المحلي لتقليل الوميض
+  const start = (() => {
+    const { token, cachedUser } = rehydrateAuth();
+    return {
+      user: cachedUser,
+      isAdmin: cachedUser?.role === "admin",
+      hasToken: !!token,
+    };
+  })();
+
+  const [user, setUser] = useState(start.user);
+  const [isAdmin, setIsAdmin] = useState(start.isAdmin);
   const [tweets, setTweets] = useState([]);
-  const [loadingTweets, setLoadingTweets] = useState(true);
+  const [authLoading, setAuthLoading] = useState(start.hasToken); // لو فيه توكن، نتحقق من /me
 
-  // ✅ استرجاع التوكن (إن وجد) + (اختياري) جلب المستخدم الحالي
+  // تحقّق من صحة التوكن وجلب المستخدم بعد التحديث
   useEffect(() => {
-    const token = localStorage.getItem("token");
-    if (token) setAuthToken(token);
-
-    // لو عندك /api/me رجّع بيانات المستخدم
-    // (async () => {
-    //   try {
-    //     const { data } = await api.get("/me");
-    //     setUser(data.user);
-    //     setIsAdmin(data.user?.role === "admin");
-    //   } catch {}
-    // })();
-  }, []);
-
-  // ✅ جلب التايملاين مرة وحدة هنا (تقدر تشيل الفetch من Home لو تحب)
-  useEffect(() => {
-    let mounted = true;
-    (async () => {
+    const boot = async () => {
+      if (!start.hasToken) return setAuthLoading(false);
       try {
-        setLoadingTweets(true);
-        const res = await api.get("/tweets");
-        const list = Array.isArray(res.data) ? res.data : (res.data?.data || []);
-        if (mounted) setTweets(list);
+        // وفّر مسار /api/me يرجّع المستخدم الحالي
+        const { data } = await api.get("/me");
+        const me = data?.user ?? data; // يدعم الحالتين
+        setUser(me);
+        setIsAdmin(me?.role === "admin");
+        localStorage.setItem("user", JSON.stringify(me));
       } catch (e) {
-        console.error(e);
+        setAuthToken(null);
+        localStorage.removeItem("user");
+        setUser(null);
+        setIsAdmin(false);
       } finally {
-        if (mounted) setLoadingTweets(false);
+        setAuthLoading(false);
       }
-    })();
-    return () => { mounted = false; };
+    };
+    boot();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleLogout = async () => {
-    try {
-      await api.post("/logout");
-    } catch (e) {
-      console.error(e);
-    } finally {
-      setAuthToken(null);
-      setUser(null);
-      setIsAdmin(false);
-    }
+    try { await api.post("/logout"); } catch {}
+    setAuthToken(null);
+    localStorage.removeItem("user");
+    setUser(null);
+    setIsAdmin(false);
+  };
+const insertReplyIntoTree = (list, parentId, reply) => {
+    return list.map(t => {
+      if (t.id === parentId) {
+        return { ...t, replies: [...(t.replies || []), reply] };
+      }
+      if (Array.isArray(t.replies) && t.replies.length) {
+        return { ...t, replies: insertReplyIntoTree(t.replies, parentId, reply) };
+      }
+      return t;
+    });
   };
 
-  // ✅ حذف تغريدة من السيرفر ثم من الحالة
-  const deleteTweet = async (tweetId) => {
-    try {
-      await api.delete(`/tweets/${tweetId}`);
-      setTweets((cur) => cur.filter((t) => t.id !== tweetId));
-      alert(`تم حذف التغريدة رقم ${tweetId}`);
-    } catch (e) {
-      console.error(e);
-      alert("فشل حذف التغريدة.");
-    }
+  // تُستدعى من Tweet بعد إنشاء الرد
+  const onAddReply = (parentId, reply) => {
+    setTweets(prev => insertReplyIntoTree(prev, parentId, reply));
   };
+  const Protected = ({ cond, to = "/login", children }) =>
+    cond ? children : <Navigate to={to} replace />;
+
+  if (authLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        جارِ التحقق من الجلسة...
+      </div>
+    );
+  }
 
   return (
     <div className={darkMode ? "dark bg-gray-900 text-white min-h-screen" : "bg-gray-100 text-black min-h-screen"}>
       <Router>
-        <Navbar
-          user={user}
-          isAdmin={isAdmin}
-          darkMode={darkMode}
-          setDarkMode={setDarkMode}
-          onLogout={handleLogout}
-        />
+        <Navbar user={user} isAdmin={isAdmin} darkMode={darkMode} setDarkMode={setDarkMode} onLogout={handleLogout} />
         <main className="container mx-auto p-4">
           <Routes>
-            <Route
-              path="/"
-              element={
-                <Home
-                  user={user}
-                  tweets={tweets}
-                  setTweets={setTweets}
-                  loading={loadingTweets} // (اختياري) لو بتستخدمه في Home
-                />
-              }
-            />
+            <Route path="/" element={<Home user={user} tweets={tweets} setTweets={setTweets} />} />
             <Route path="/login" element={<Login setUser={setUser} setIsAdmin={setIsAdmin} />} />
             <Route path="/register" element={<Register setUser={setUser} />} />
             <Route path="/forgot-password" element={<ForgotPassword />} />
-            <Route path="/profile" element={<Profile user={user} tweets={tweets} />} />
-            <Route path="/settings" element={<Settings user={user} onLogout={handleLogout} />} />
-
-            {/* ✅ حماية صفحة الأدمن */}
-            <Route
-              path="/reports"
-              element={
-                user && isAdmin
-                  ? <AdminPage user={user} isAdmin={isAdmin} tweets={tweets} deleteTweet={deleteTweet} />
-                  : <Navigate to="/" replace />
-              }
-            />
-
-            {/* ✅ تمرير deleteTweet لتفاصيل التغريدة */}
-            <Route
-              path="/tweet/:id"
-              element={<TweetDetail user={user} tweets={tweets} deleteTweet={deleteTweet} isAdmin={isAdmin} />}
-            />
-
+            <Route path="/profile" element={<Protected cond={!!user}><Profile user={user} tweets={tweets} /></Protected>} />
+            <Route path="/settings" element={<Protected cond={!!user}><Settings user={user} onLogout={handleLogout} /></Protected>} />
+            <Route path="/reports" element={
+              <Protected cond={!!user && isAdmin} to="/">
+                <AdminPage user={user} isAdmin={isAdmin} tweets={tweets} deleteTweet={() => {}} />
+              </Protected>
+            } />
+            <Route path="/tweet/:id" element={<TweetDetail user={user} tweets={tweets} deleteTweet={() => {}} isAdmin={isAdmin} />} />
             <Route path="*" element={<div className="text-center py-10"><h2>404 - الصفحة غير موجودة</h2></div>} />
           </Routes>
         </main>
@@ -131,4 +114,4 @@ function App() {
   );
 }
 
-export default App;
+

@@ -1,36 +1,46 @@
 // src/api.js
-import axios from 'axios';
+import axios from "axios";
 
-// ✅ !! مهم جدًا: عدّل هذا الرابط إلى رابط الخادم الحقيقي الخاص بك !!
 const api = axios.create({
-  baseURL: 'http://127.0.0.1:8000/api', // مثال لخادم محلي
-  headers: {
-    'Content-Type': 'application/json',
-    'Accept': 'application/json',
-  },  withCredentials: true, 
-} );
+  baseURL: process.env.REACT_APP_API_BASE_URL, 
+  headers: { "Content-Type": "application/json", Accept: "application/json" },
+  withCredentials: false, // نعتمد Bearer فقط
+});
 
-// دالة لضبط التوكن في الهيدر
 export const setAuthToken = (token) => {
   if (token) {
-    api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-    localStorage.setItem('token', token);
+    api.defaults.headers.common.Authorization = `Bearer ${token}`;
+    localStorage.setItem("token", token);
   } else {
-    delete api.defaults.headers.common['Authorization'];
-    localStorage.removeItem('token');
+    delete api.defaults.headers.common.Authorization;
+    localStorage.removeItem("token");
   }
 };
 
-// معالج الأخطاء التلقائي (Interceptor)
+export const rehydrateAuth = () => {
+  const token = localStorage.getItem("token");
+  if (token) {
+    api.defaults.headers.common.Authorization = `Bearer ${token}`;
+  }
+  try {
+    const cachedUser = localStorage.getItem("user");
+    return { token, cachedUser: cachedUser ? JSON.parse(cachedUser) : null };
+  } catch {
+    return { token, cachedUser: null };
+  }
+};
+
 api.interceptors.response.use(
-  (response) => response,
-  (error) => {
-    if (error.response && error.response.status === 401) {
+  (res) => res,
+  (err) => {
+    if (err?.response?.status === 401) {
       setAuthToken(null);
-      // إعادة توجيه المستخدم إلى صفحة تسجيل الدخول
-      window.location.href = '/login';
+      localStorage.removeItem("user");
+      if (window.location.pathname !== "/login") {
+        window.location.href = "/login";
+      }
     }
-    return Promise.reject(error);
+    return Promise.reject(err);
   }
 );
 

@@ -10,23 +10,30 @@ export default function Login({ setUser, setIsAdmin }) {
   const navigate = useNavigate();
 
   const handleLoginSubmit = async (e) => {
-    e.preventDefault();
-    try {
-      setLoading(true);
-      const { data } = await api.post("/login", { email, password });
-      const { user, token } = data;
+  e.preventDefault();
+  setLoading(true);
+  try {
+    const { data } = await api.post("/login", {
+      email: email,  // ← نفس المدخل عندك (بريد/اسم مستخدم)
+      password,
+    });
+    const { user, token } = data;
 
-      setAuthToken(token);              // Bearer أو كوكيز حسب إعدادك
-      setUser(user);
-      setIsAdmin(user?.role === "admin");
-      navigate("/");
-    } catch (err) {
-      console.error(err);
-      alert("فشل تسجيل الدخول. تأكد من البيانات.");
-    } finally {
-      setLoading(false);
-    }
-  };
+    setAuthToken(token);
+    setUser(user);
+    setIsAdmin(user?.role === "admin");
+    navigate("/");
+  } catch (err) {
+    console.error("LOGIN ERROR:", err?.response?.status, err?.response?.data || err.message);
+    alert(
+      err?.response?.data?.message ||
+      (err?.response?.data?.errors && JSON.stringify(err.response.data.errors)) ||
+      "فشل تسجيل الدخول. تأكد من البيانات."
+    );
+  } finally {
+    setLoading(false);
+  }
+};
 
   return (
     <div className="flex justify-center items-center pt-10 sm:pt-16">
