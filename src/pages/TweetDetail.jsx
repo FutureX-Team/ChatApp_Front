@@ -20,7 +20,8 @@ export default function TweetDetail({ user }) {
     (async () => {
       try {
         const res = await api.get(`/tweets/${id}`, { signal: ac.signal });
-        setTweet(normalize(res));
+        const data = normalize(res);
+        setTweet(data);
       } catch (err) {
         if (err.name !== "CanceledError") console.error(err);
       } finally {
@@ -38,7 +39,14 @@ export default function TweetDetail({ user }) {
     if (!replyText?.trim()) return;
     try {
       const res = await api.post(`/tweets/${tweet.id}/reply`, { text: replyText });
-      const created = normalize(res);
+      let created = normalize(res);
+
+      // ensure the reply includes its user for immediate render
+      if (!created.user) {
+        const full = await api.get(`/tweets/${created.id}`);
+        created = normalize(full);
+      }
+
       setTweet((prev) => ({
         ...prev,
         replies_count: (prev?.replies_count ?? prev?.replies?.length ?? 0) + 1,
@@ -54,13 +62,15 @@ export default function TweetDetail({ user }) {
   if (loading) return <div className="text-center py-10">جاري تحميل التغريدة...</div>;
   if (!tweet) return <div className="text-center py-10">التغريدة غير موجودة</div>;
 
+  const authorTitle = tweet.user?.name ?? tweet.user?.username ?? "تغريدة";
+
   return (
     <div className="max-w-2xl mx-auto space-y-4">
       {showReplyModal && (
         <Modal
           onClose={() => setShowReplyModal(false)}
           onSubmit={handleAddReply}
-          title={`الرد على ${tweet.user?.name || "تغريدة"}`}
+          title={`الرد على ${authorTitle}`}
           placeholder="اكتب ردك..."
           submitLabel="رد"
         />

@@ -38,7 +38,14 @@ export default function Home({ user, tweets, setTweets }) {
     if (!text.trim()) return;
     try {
       const res = await api.post("/tweets", { text });
-      const created = normalize(res);
+      let created = normalize(res);
+
+      // If backend didn't include author, fetch full tweet so UI can show username immediately
+      if (!created.user) {
+        const full = await api.get(`/tweets/${created.id}`);
+        created = normalize(full);
+      }
+
       setTweets((prev) => [created, ...(prev || [])]);
       setShowModal(false);
     } catch (e) {
