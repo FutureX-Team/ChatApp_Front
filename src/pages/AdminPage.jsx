@@ -5,29 +5,38 @@ import api from "../api/api";
 
 const normalize = (res) => (Array.isArray(res.data) ? res.data : (res.data?.data ?? res.data));
 
+/* -------------------- constants -------------------- */
+// Backend enum is pending | reviewed | resolved
+const STATUS_LABEL = {
+  pending: "جديد",
+  reviewed: "تحت المراجعة",
+  resolved: "تمت المعالجة",
+};
+
+const STATUS_CLASS = {
+  pending: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200",
+  reviewed: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200",
+  resolved: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200",
+};
+
 /* -------------------- ReportsTab -------------------- */
 const ReportsTab = ({ deleteTweet }) => {
   const navigate = useNavigate();
-
-  const statusLabel = { new: "جديد", reviewing: "تحت المراجعة", resolved: "تمت المعالجة" };
-
   const [reports, setReports] = useState([]);
   const [loading, setLoading] = useState(true);
-
-  const getStatusClass = (statusEn) => {
-    switch (statusEn) {
-      case "new": return "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200";
-      case "reviewing": return "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200";
-      case "resolved": return "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200";
-      default: return "bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200";
-    }
-  };
 
   const fetchReports = async (signal) => {
     try {
       setLoading(true);
       const res = await api.get("/admin/reports", { signal });
-      setReports(normalize(res));
+      const list = normalize(res).map((r) => ({
+        // normalize keys defensively so PUT /admin/reports/:id won't 404
+        id: r.id ?? r.report_id ?? r.rid,
+        tweet_id: r.tweet_id ?? r.tid ?? r.tweet?.id,
+        reason: r.reason ?? r.text ?? "",
+        status: ["pending", "reviewed", "resolved"].includes(r.status) ? r.status : "pending",
+      }));
+      setReports(list);
     } catch (e) {
       if (e.name !== "CanceledError") {
         console.error(e);
@@ -45,15 +54,19 @@ const ReportsTab = ({ deleteTweet }) => {
   }, []);
 
   const handleStatusChange = async (reportId, newStatus) => {
-    const previous = reports.find((r) => r.id === reportId)?.status;
-    setReports((prev) => prev.map((r) => (r.id === reportId ? { ...r, status: newStatus } : r)));
+    const prev = reports.find((r) => r.id === reportId)?.status;
+    setReports((ps) => ps.map((r) => (r.id === reportId ? { ...r, status: newStatus } : r)));
     try {
       await api.put(`/admin/reports/${reportId}`, { status: newStatus });
     } catch (e) {
-      console.error(e);
-      alert("تعذّر تحديث الحالة");
+      const msg =
+        e.response?.data?.message ||
+        (e.response?.data?.errors && Object.values(e.response.data.errors).flat().join("\n")) ||
+        "تعذّر تحديث الحالة";
+      alert(msg);
+      console.error(e.response?.data || e);
       // rollback
-      setReports((prev) => prev.map((r) => (r.id === reportId ? { ...r, status: previous } : r)));
+      setReports((ps) => ps.map((r) => (r.id === reportId ? { ...r, status: prev } : r)));
     }
   };
 
@@ -65,8 +78,12 @@ const ReportsTab = ({ deleteTweet }) => {
       await handleStatusChange(report.id, "resolved");
       alert("تم حذف التغريدة ومعالجة البلاغ");
     } catch (e) {
-      console.error(e);
-      alert("تعذّر حذف التغريدة");
+      const msg =
+        e.response?.data?.message ||
+        (e.response?.data?.errors && Object.values(e.response.data.errors).flat().join("\n")) ||
+        "تعذّر حذف التغريدة";
+      alert(msg);
+      console.error(e.response?.data || e);
     }
   };
 
@@ -76,7 +93,7 @@ const ReportsTab = ({ deleteTweet }) => {
     <div className="space-y-4">
       {reports.map((report) => (
         <div
-          key={report.id}
+          key={`${report.id}-${report.tweet_id}`}
           className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-md flex flex-col sm:flex-row sm:items-center gap-4"
         >
           <div
@@ -91,12 +108,12 @@ const ReportsTab = ({ deleteTweet }) => {
             <select
               value={report.status}
               onChange={(e) => handleStatusChange(report.id, e.target.value)}
-              className={`text-xs font-bold rounded-full border-none focus:ring-2 focus:ring-blue-500 ${getStatusClass(report.status)}`}
+              className={`text-xs font-bold rounded-full border-none focus:ring-2 focus:ring-blue-500 ${STATUS_CLASS[report.status] ?? ""}`}
               onClick={(e) => e.stopPropagation()}
             >
-              <option value="new">{statusLabel.new}</option>
-              <option value="reviewing">{statusLabel.reviewing}</option>
-              <option value="resolved">{statusLabel.resolved}</option>
+              <option value="pending">{STATUS_LABEL.pending}</option>
+              <option value="reviewed">{STATUS_LABEL.reviewed}</option>
+              <option value="resolved">{STATUS_LABEL.resolved}</option>
             </select>
 
             <button
