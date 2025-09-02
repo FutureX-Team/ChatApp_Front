@@ -12,9 +12,17 @@ export default function Tweet({ tweet, currentUser, onReply }) {
   );
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [showReportModal, setShowReportModal] = useState(false);
+  const [voted, setVoted] = useState(null); // "like" | "dislike" | null
   const dropdownRef = useRef(null);
 
-  // keep local counters in sync if parent updates the tweet object
+  // read any stored vote (per user, per device)
+  useEffect(() => {
+    const key = voteKey(tweet.id, currentUser?.id);
+    const saved = localStorage.getItem(key);
+    if (saved === "like" || saved === "dislike") setVoted(saved);
+  }, [tweet.id, currentUser?.id]);
+
+  // keep local counters in sync if parent re-fetches
   useEffect(() => {
     setLikes(tweet.up_count ?? 0);
     setDislikes(tweet.down_count ?? 0);
@@ -35,20 +43,29 @@ export default function Tweet({ tweet, currentUser, onReply }) {
     if (h < 24) return `${h} س`;
     const days = Math.floor(h / 24);
     if (days < 7) return `${days} ي`;
-    // fallback full date/time
     return d.toLocaleString("ar-SA", { hour12: false });
   };
+
+  const voteKey = (tweetId, userId) => `vote:${tweetId}:${userId ?? "guest"}`;
 
   const handleLike = async (e) => {
     e.stopPropagation();
     if (!currentUser) return alert("سجّل الدخول أولاً");
-    const prev = likes;
-    setLikes(prev + 1);
+    if (voted) return; // already chose like or dislike
+
+    setVoted("like");
+    localStorage.setItem(voteKey(tweet.id, currentUser?.id), "like");
+    setLikes((l) => l + 1); // optimistic
+
     try {
       const res = await api.post(`/tweets/${tweet.id}/like`);
-      setLikes(res.data?.up_count ?? prev + 1);
+      setLikes(res.data?.up_count ?? likes + 1);
+      setDislikes(res.data?.down_count ?? dislikes);
     } catch (err) {
-      setLikes(prev);
+      // rollback UI if server failed
+      setVoted(null);
+      localStorage.removeItem(voteKey(tweet.id, currentUser?.id));
+      setLikes((l) => Math.max(0, l - 1));
       console.error(err);
       alert("تعذّر تسجيل الإعجاب");
     }
@@ -57,13 +74,20 @@ export default function Tweet({ tweet, currentUser, onReply }) {
   const handleDislike = async (e) => {
     e.stopPropagation();
     if (!currentUser) return alert("سجّل الدخول أولاً");
-    const prev = dislikes;
-    setDislikes(prev + 1);
+    if (voted) return; // already chose like or dislike
+
+    setVoted("dislike");
+    localStorage.setItem(voteKey(tweet.id, currentUser?.id), "dislike");
+    setDislikes((d) => d + 1); // optimistic
+
     try {
       const res = await api.post(`/tweets/${tweet.id}/dislike`);
-      setDislikes(res.data?.down_count ?? prev + 1);
+      setLikes(res.data?.up_count ?? likes);
+      setDislikes(res.data?.down_count ?? dislikes + 1);
     } catch (err) {
-      setDislikes(prev);
+      setVoted(null);
+      localStorage.removeItem(voteKey(tweet.id, currentUser?.id));
+      setDislikes((d) => Math.max(0, d - 1));
       console.error(err);
       alert("تعذّر تسجيل عدم الإعجاب");
     }
@@ -129,12 +153,28 @@ export default function Tweet({ tweet, currentUser, onReply }) {
         </div>
 
         <div className="flex items-center gap-6 mt-4 text-gray-500 dark:text-gray-400 ml-12">
-          <button className="flex items-center gap-1 hover:text-green-500" onClick={handleLike}>
+          <button
+            onClick={handleLike}
+            disabled={!!voted}
+            className={`flex items-center gap-1 ${
+              voted === "like" ? "text-green-600" : "hover:text-green-500"
+            } ${voted ? "opacity-70 cursor-not-allowed" : ""}`}
+            title={voted ? "لقد اخترت رأيك" : "أعجبني"}
+          >
             <ArrowUp size={16} /> {likes}
           </button>
-          <button className="flex items-center gap-1 hover:text-red-500" onClick={handleDislike}>
+
+          <button
+            onClick={handleDislike}
+            disabled={!!voted}
+            className={`flex items-center gap-1 ${
+              voted === "dislike" ? "text-red-600" : "hover:text-red-500"
+            } ${voted ? "opacity-70 cursor-not-allowed" : ""}`}
+            title={voted ? "لقد اخترت رأيك" : "لم يعجبني"}
+          >
             <ArrowDown size={16} /> {dislikes}
           </button>
+
           <button
             onClick={(e) => { e.stopPropagation(); if (onReply) onReply(); }}
             className="flex items-center gap-1 hover:text-blue-500"
