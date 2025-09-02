@@ -4,18 +4,18 @@ import Tweet from "../components/Tweet";
 import Modal from "../components/Modal";
 import api from "../api/api";
 
-export default function TweetDetail({ user, onAddReply }) {
+export default function TweetDetail({ user }) {
   const { id } = useParams();
   const [tweet, setTweet] = useState(null);
   const [loading, setLoading] = useState(true);
   const [showReplyModal, setShowReplyModal] = useState(false);
 
+  // جلب التغريدة من السيرفر
   useEffect(() => {
     let mounted = true;
     (async () => {
       try {
-        setLoading(true);
-        const res = await api.get(`/tweets/${id}`); // جلب التغريدة من السيرفر مباشرة
+        const res = await api.get(`/tweets/${id}`);
         if (mounted) setTweet(res.data?.data || res.data);
       } catch (err) {
         console.error(err);
@@ -26,20 +26,18 @@ export default function TweetDetail({ user, onAddReply }) {
     return () => { mounted = false; };
   }, [id]);
 
-  const handleAddReply = async (text) => {
-    if (!text.trim() || !tweet) return;
+  const handleAddReply = async (replyText) => {
+    if (!replyText?.trim()) return;
     try {
-      const { data } = await api.post(`/tweets/${tweet.id}/reply`, { text });
-      const newReply = data?.data || data;
+      const { data } = await api.post(`/tweets/${tweet.id}/reply`, { text: replyText });
       setTweet(prev => ({
         ...prev,
-        replies: [newReply, ...(prev.replies || [])]
+        replies: [data.data || data, ...(prev.replies || [])]
       }));
-      if (onAddReply) onAddReply(tweet.id, newReply);
       setShowReplyModal(false);
     } catch (err) {
       console.error(err);
-      alert("فشل إرسال الرد.");
+      alert("فشل إرسال الرد. الرجاء المحاولة مرة أخرى.");
     }
   };
 
@@ -48,21 +46,34 @@ export default function TweetDetail({ user, onAddReply }) {
 
   return (
     <div className="max-w-2xl mx-auto space-y-4">
-      <Tweet tweet={tweet} currentUser={user} />
-      <button
-        onClick={() => setShowReplyModal(true)}
-        className="w-full bg-blue-500 text-white py-2 rounded-full mt-4"
-      >
-        أضف ردك
-      </button>
       {showReplyModal && (
-        <Modal onClose={() => setShowReplyModal(false)} onSubmit={handleAddReply} title="اكتب ردك" />
+        <Modal
+          onClose={() => setShowReplyModal(false)}
+          onSubmit={handleAddReply}
+          title={`الرد على ${tweet.user?.name || 'تغريدة'}`}
+          placeholder="اكتب ردك..."
+          submitLabel="رد"
+        />
       )}
+
+      <Tweet tweet={tweet} currentUser={user} />
+
+      {user && (
+        <div className="px-4 py-2">
+          <button
+            onClick={() => setShowReplyModal(true)}
+            className="w-full bg-blue-500 text-white py-2 rounded-full font-semibold hover:bg-blue-600 transition-colors flex items-center justify-center gap-2"
+          >
+            إضافة رد
+          </button>
+        </div>
+      )}
+
       {tweet.replies?.length > 0 && (
-        <div className="ml-5 pl-5 border-l-2 border-gray-200 dark:border-gray-700 space-y-4 mt-4">
+        <div className="ml-5 pl-5 border-l-2 border-gray-200 dark:border-gray-700 space-y-4">
           <h3 className="text-lg font-bold mt-6 text-gray-900 dark:text-white">الردود</h3>
-          {tweet.replies.map(reply => (
-            <Tweet key={reply.id} tweet={reply} currentUser={user} onReply={() => setShowReplyModal(true)} />
+          {tweet.replies.map((reply) => (
+            <Tweet key={reply.id} tweet={reply} currentUser={user} />
           ))}
         </div>
       )}
