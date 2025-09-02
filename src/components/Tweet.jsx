@@ -18,17 +18,18 @@ export default function Tweet({ tweet, currentUser, onReply }) {
     "Unknown";
 
   const handleReportSubmit = async (reason) => {
-    if (!reason) return alert("اختر سبب الإبلاغ");
-    try {
-      await api.post(`/tweets/${tweet.id}/report`, { reason });
-      alert("تم إرسال البلاغ بنجاح");
-      setShowReportModal(false);
-      setDropdownOpen(false);
-    } catch (err) {
-      console.error(err);
-      alert("حدث خطأ أثناء إرسال البلاغ");
-    }
-  };
+  if (!reason) return alert("اختر سبب الإبلاغ");
+  try {
+    await api.post(`/reports`, { tweet_id: tweet.id, reason });
+    alert("تم إرسال البلاغ بنجاح");
+    setShowReportModal(false);
+    setDropdownOpen(false);
+  } catch (err) {
+    console.error(err);
+    alert("حدث خطأ أثناء إرسال البلاغ");
+  }
+};
+
 
   return (
     <>
