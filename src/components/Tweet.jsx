@@ -1,36 +1,47 @@
 import { useState, useRef, useEffect } from "react";
+import { Link } from "react-router-dom";
 import { ArrowUp, ArrowDown, MessageSquare, MoreHorizontal, Flag } from "lucide-react";
 import Avatar from "./Avatar";
 import ReportModal from "./ReportModal";
 import api from "../api/api";
 
 export default function Tweet({ tweet, currentUser, onReply }) {
+  // counts
   const [likes, setLikes] = useState(tweet.up_count ?? 0);
   const [dislikes, setDislikes] = useState(tweet.down_count ?? 0);
   const [replyCount, setReplyCount] = useState(
     tweet.replies_count ?? (Array.isArray(tweet.replies) ? tweet.replies.length : 0)
   );
+
+  // dropdown/report
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [showReportModal, setShowReportModal] = useState(false);
-  const [voted, setVoted] = useState(null); // "like" | "dislike" | null
   const dropdownRef = useRef(null);
 
-  // read any stored vote (per user, per device)
+  // frontend-only vote guard (one choice per device/user)
+  const [voted, setVoted] = useState(null); // "like" | "dislike" | null
+
+  // derived
+  const authorUsername =
+    tweet?.user?.username ?? tweet?.user?.name ?? tweet?.guest?.name ?? "Unknown";
+  const isReply = Boolean(tweet.reply_to_tweet_id);
+
+  // read stored vote (per user per device)
   useEffect(() => {
     const key = voteKey(tweet.id, currentUser?.id);
     const saved = localStorage.getItem(key);
     if (saved === "like" || saved === "dislike") setVoted(saved);
   }, [tweet.id, currentUser?.id]);
 
-  // keep local counters in sync if parent re-fetches
+  // keep local counters in sync if parent updates tweet
   useEffect(() => {
     setLikes(tweet.up_count ?? 0);
     setDislikes(tweet.down_count ?? 0);
     setReplyCount(tweet.replies_count ?? (Array.isArray(tweet.replies) ? tweet.replies.length : 0));
   }, [tweet]);
 
-  const authorUsername =
-    tweet?.user?.username ?? tweet?.user?.name ?? tweet?.guest?.name ?? "Unknown";
+  // helpers
+  const voteKey = (tweetId, userId) => `vote:${tweetId}:${userId ?? "guest"}`;
 
   const timeAgo = (ts) => {
     if (!ts) return "";
@@ -46,12 +57,11 @@ export default function Tweet({ tweet, currentUser, onReply }) {
     return d.toLocaleString("ar-SA", { hour12: false });
   };
 
-  const voteKey = (tweetId, userId) => `vote:${tweetId}:${userId ?? "guest"}`;
-
+  // actions
   const handleLike = async (e) => {
     e.stopPropagation();
     if (!currentUser) return alert("سجّل الدخول أولاً");
-    if (voted) return; // already chose like or dislike
+    if (voted) return; // already chose like/dislike
 
     setVoted("like");
     localStorage.setItem(voteKey(tweet.id, currentUser?.id), "like");
@@ -62,7 +72,6 @@ export default function Tweet({ tweet, currentUser, onReply }) {
       setLikes(res.data?.up_count ?? likes + 1);
       setDislikes(res.data?.down_count ?? dislikes);
     } catch (err) {
-      // rollback UI if server failed
       setVoted(null);
       localStorage.removeItem(voteKey(tweet.id, currentUser?.id));
       setLikes((l) => Math.max(0, l - 1));
@@ -74,11 +83,11 @@ export default function Tweet({ tweet, currentUser, onReply }) {
   const handleDislike = async (e) => {
     e.stopPropagation();
     if (!currentUser) return alert("سجّل الدخول أولاً");
-    if (voted) return; // already chose like or dislike
+    if (voted) return;
 
     setVoted("dislike");
     localStorage.setItem(voteKey(tweet.id, currentUser?.id), "dislike");
-    setDislikes((d) => d + 1); // optimistic
+    setDislikes((d) => d + 1);
 
     try {
       const res = await api.post(`/tweets/${tweet.id}/dislike`);
@@ -117,12 +126,25 @@ export default function Tweet({ tweet, currentUser, onReply }) {
           <div className="flex items-start">
             <Avatar name={authorUsername} />
             <div className="ml-3">
+              {/* header: username + time */}
               <div className="flex items-baseline gap-2">
                 <h3 className="font-bold">{authorUsername}</h3>
                 <span className="text-xs text-gray-500 dark:text-gray-400">
                   {timeAgo(tweet.created_at)}
                 </span>
               </div>
+
+              {/* reply badge */}
+              {isReply && (
+                <div className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                  ↪︎ ردًا على{" "}
+                  <Link to={`/tweet/${tweet.reply_to_tweet_id}`} className="underline">
+                    هذه التغريدة
+                  </Link>
+                </div>
+              )}
+
+              {/* body */}
               <p className="mt-1 whitespace-pre-wrap break-words">
                 {tweet.text ?? ""}
               </p>
@@ -152,6 +174,7 @@ export default function Tweet({ tweet, currentUser, onReply }) {
           )}
         </div>
 
+        {/* actions */}
         <div className="flex items-center gap-6 mt-4 text-gray-500 dark:text-gray-400 ml-12">
           <button
             onClick={handleLike}
