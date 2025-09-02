@@ -1,21 +1,47 @@
+// src/api.js
 import axios from "axios";
 
-
 const api = axios.create({
-baseURL: "https://your-domain.com/api",
-headers: { "Content-Type": "application/json" },
+  baseURL: process.env.REACT_APP_API_BASE_URL, 
+  headers: { "Content-Type": "application/json", Accept: "application/json" },
+  withCredentials: false, // نعتمد Bearer فقط
 });
 
+export const setAuthToken = (token) => {
+  if (token) {
+    api.defaults.headers.common.Authorization = `Bearer ${token}`;
+    localStorage.setItem("token", token);
+  } else {
+    delete api.defaults.headers.common.Authorization;
+    localStorage.removeItem("token");
+  }
+};
 
-export function setAuthToken(token) {
-if (token) {
-localStorage.setItem("token", token);
-api.defaults.headers.common.Authorization = `Bearer ${token}`;
-} else {
-localStorage.removeItem("token");
-delete api.defaults.headers.common.Authorization;
-}
-}
+export const rehydrateAuth = () => {
+  const token = localStorage.getItem("token");
+  if (token) {
+    api.defaults.headers.common.Authorization = `Bearer ${token}`;
+  }
+  try {
+    const cachedUser = localStorage.getItem("user");
+    return { token, cachedUser: cachedUser ? JSON.parse(cachedUser) : null };
+  } catch {
+    return { token, cachedUser: null };
+  }
+};
 
+api.interceptors.response.use(
+  (res) => res,
+  (err) => {
+    if (err?.response?.status === 401) {
+      setAuthToken(null);
+      localStorage.removeItem("user");
+      if (window.location.pathname !== "/login") {
+        window.location.href = "/login";
+      }
+    }
+    return Promise.reject(err);
+  }
+);
 
 export default api;

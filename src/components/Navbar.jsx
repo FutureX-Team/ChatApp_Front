@@ -1,57 +1,90 @@
-import { Link } from "react-router-dom";
-import ThemeToggle from "./ThemeToggle";
-import { useState } from "react";
+// src/components/Navbar.jsx
 
-export default function Navbar({ user, isAdmin, darkMode, setDarkMode }) {
+import { useState, useEffect, useRef } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { Home, Sun, Moon } from "lucide-react";
+import Avatar from "./Avatar";
+
+export default function Navbar({ user, isAdmin, darkMode, setDarkMode, onLogout }) {
   const [dropdownOpen, setDropdownOpen] = useState(false);
+  const dropdownRef = useRef(null);
+  const navigate = useNavigate();
+
+  const handleLogoutClick = () => {
+    if (onLogout) {
+      onLogout();
+    }
+    setDropdownOpen(false);
+    navigate('/login');
+  };
+
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setDropdownOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [dropdownRef]);
 
   return (
-    <nav className="flex items-center justify-between p-4 shadow-md bg-white dark:bg-gray-800">
-      <div>
-        <Link to="/">
-          <img src="/logo.png" alt="Logo" className="h-8" />
+    <nav className="bg-white dark:bg-gray-800 shadow-md sticky top-0 z-50">
+      <div className="container mx-auto flex items-center justify-between p-3">
+        <Link to="/" className="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700">
+          <Home className="h-6 w-6 text-gray-700 dark:text-gray-200" />
         </Link>
-      </div>
-      <div className="flex items-center gap-4 relative">
-        <ThemeToggle darkMode={darkMode} setDarkMode={setDarkMode} />
 
-        {/* صورة الحساب أو تسجيل دخول */}
-<div className="relative"> {/* مهم: relative */}
-  {user ? (
-    <img
-      src={user.avatar}
-      alt="avatar"
-      className="h-10 w-10 rounded-full cursor-pointer"
-      onClick={() => setDropdownOpen(prev => !prev)}
-    />
-  ) : (
-    <Link to="/login">
-      <img src="/avatar-login.png" alt="Login" className="h-10 w-10 rounded-full cursor-pointer" />
-    </Link>
-  )}
+        <div className="flex items-center gap-4">
+          <button onClick={() => setDarkMode(!darkMode)} className="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700">
+            {darkMode ? <Sun size={20} /> : <Moon size={20} />}
+          </button>
 
-  {user && dropdownOpen && (
-    <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-gray-700 shadow-lg rounded-md z-50">
-      <Link
-        to="/profile"
-        className="block px-4 py-2 text-black dark:text-white hover:bg-gray-200 dark:hover:bg-gray-600"
-      >
-        الملف التعريفي
-      </Link>
-      <Link
-        to="/settings"
-        className="block px-4 py-2 text-black dark:text-white hover:bg-gray-200 dark:hover:bg-gray-600"
-      >
-        الإعدادات
-      </Link>
-    </div>
-  )}
-</div>
+          {isAdmin && (
+            <Link to="/reports" className="px-3 py-2 bg-blue-500 text-white rounded-lg text-sm font-bold hover:bg-blue-600">
+              لوحة التحكم
+            </Link>
+          )}
 
+          <div className="relative" ref={dropdownRef}>
+            {user ? (
+              <div className="cursor-pointer" onClick={() => setDropdownOpen(prev => !prev)}>
+                <Avatar name={user.name} />
+              </div>
+            ) : (
+              <Link to="/login" className="text-sm font-semibold p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700">
+                تسجيل الدخول
+              </Link>
+            )}
 
-
-
-        {isAdmin && <Link to="/reports" className="px-4 py-2 bg-red-500 text-white rounded">البلاغات</Link>}
+            {user && dropdownOpen && (
+              // ✅ --- التعديل هنا --- ✅
+              <div 
+                className="absolute left-0 mt-2 bg-white dark:bg-gray-700 shadow-xl rounded-lg z-50 overflow-hidden"
+                // ✅ 1. تحديد عرض ثابت للقائمة
+                // ✅ 2. تحريك القائمة لليسار لتوسيطها تحت الأيقونة
+                style={{ width: '12rem', transform: 'translateX(0)' }} 
+              >
+                <div className="p-3 border-b border-gray-200 dark:border-gray-600">
+                  <p className="font-bold text-sm text-right">{user.name}</p>
+                </div>
+                <Link to="/profile" onClick={() => setDropdownOpen(false)} className="block px-4 py-2 text-right text-sm text-black dark:text-white hover:bg-gray-100 dark:hover:bg-gray-600">
+                  الملف الشخصي
+                </Link>
+                <Link to="/settings" onClick={() => setDropdownOpen(false)} className="block px-4 py-2 text-right text-sm text-black dark:text-white hover:bg-gray-100 dark:hover:bg-gray-600">
+                  الإعدادات
+                </Link>
+                <div className="border-t border-gray-200 dark:border-gray-600">
+                  <button onClick={handleLogoutClick} className="w-full text-right px-4 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-gray-100 dark:hover:bg-gray-600">
+                    تسجيل الخروج
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
       </div>
     </nav>
   );

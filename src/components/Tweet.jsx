@@ -1,65 +1,81 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
+import { ArrowUp, ArrowDown, MessageSquare, MoreHorizontal, Flag } from "lucide-react";
+import Avatar from "./Avatar";
+import ReportModal from "./ReportModal";
+import api from "../api/api";
 
-export default function Tweet({ tweet, darkMode }) {
-  const [likes, setLikes] = useState(tweet.likes || 0);
-  const [dislikes, setDislikes] = useState(tweet.dislikes || 0);
-  const [showReplies, setShowReplies] = useState(false);
+export default function Tweet({ tweet, currentUser, onReply }) {
+  const [likes, setLikes] = useState(tweet.up_count || 0);
+  const [dislikes, setDislikes] = useState(tweet.down_count || 0);
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [showReportModal, setShowReportModal] = useState(false);
+  const dropdownRef = useRef(null);
 
-  const handleLike = (e) => { e.stopPropagation(); setLikes(likes + 1); };
-  const handleDislike = (e) => { e.stopPropagation(); setDislikes(dislikes + 1); };
-  const handleReport = (e) => { e.stopPropagation(); alert("تم الإبلاغ عن التغريدة!"); };
-  const toggleReplies = () => setShowReplies(!showReplies);
+  const handleReportSubmit = async (reason) => {
+    if (!reason) return alert("اختر سبب الإبلاغ");
+    try {
+      await api.post(`/tweets/${tweet.id}/report`, { reason });
+      alert("تم إرسال البلاغ بنجاح");
+      setShowReportModal(false);
+      setDropdownOpen(false);
+    } catch (err) {
+      console.error(err);
+      alert("حدث خطأ أثناء إرسال البلاغ");
+    }
+  };
 
   return (
-    
-    <div
-      className={`p-4 mb-4 rounded shadow relative cursor-pointer transition-colors duration-200 ${darkMode ? "bg-gray-800 text-white" : "bg-white text-black"}`}
-      onClick={toggleReplies} // الضغط على أي مكان في التغريدة يفتح الردود
-    >
-      {/* زر الإبلاغ فوق يسار */}
-      <button
-        onClick={handleReport}
-        className="absolute top-2 left-2 text-red-500 font-semibold hover:opacity-80 transition-opacity"
-      >
-        🚨 إبلاغ
-      </button>
-
-      {/* رأس التغريدة: صورة واسم المستخدم */}
-      <div className="flex items-center mb-2">
-        <img src={tweet.user.avatar} alt="avatar" className="h-10 w-10 rounded-full mr-2" />
-        <span className="font-bold">{tweet.user.name}</span>
-      </div>
-
-      {/* نص التغريدة */}
-      <p className="mb-2">{tweet.content}</p>
-
-      {/* Like/Dislike تحت يسار */}
-      <div className="flex items-center space-x-4 mt-2">
-        <div className="flex items-center cursor-pointer" onClick={handleLike}>
-          ▲ <span className="ml-1">{likes}</span>
-        </div>
-        <div className="flex items-center cursor-pointer" onClick={handleDislike}>
-          ▼ <span className="ml-1">{dislikes}</span>
-        </div>
-      </div>
-
-      {/* الردود */}
-      {showReplies && tweet.replies?.length > 0 && (
-        <div className="mt-4 border-t pt-2">
-          {tweet.replies.map((reply, idx) => (
-            <div
-              key={idx}
-              className={`p-2 mb-2 rounded ${darkMode ? "bg-gray-700 text-white" : "bg-gray-100 text-black"}`}
-            >
-              <div className="flex items-center mb-1">
-                <img src={reply.user.avatar} alt="avatar" className="h-8 w-8 rounded-full mr-2" />
-                <span className="font-bold">{reply.user.name}</span>
-              </div>
-              <p>{reply.content}</p>
-            </div>
-          ))}
-        </div>
+    <>
+      {showReportModal && (
+        <ReportModal onClose={() => setShowReportModal(false)} onSubmit={handleReportSubmit} />
       )}
-    </div>
+
+      <div className="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-md relative text-gray-200">
+        <div className="flex justify-between items-start">
+          <div className="flex items-start">
+            <Avatar name={tweet.user?.username || "Unknown"} />
+            <div className="ml-3">
+              <h3 className="font-bold">{tweet.user?.username || "Unknown"}</h3>
+              <p>{tweet.text}</p>
+            </div>
+          </div>
+
+          {/* الزر سيظهر دائمًا إذا هناك مستخدم مسجل */}
+          {currentUser && (
+            <div className="relative" ref={dropdownRef}>
+              <button
+                onClick={(e) => { e.stopPropagation(); setDropdownOpen(prev => !prev); }}
+                className="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700"
+              >
+                <MoreHorizontal size={20} />
+              </button>
+
+              {dropdownOpen && (
+                <div className="absolute -right-[164px] mt-1 w-48 bg-white dark:bg-gray-700 shadow-xl rounded-lg z-20">
+                  <button
+                    onClick={(e) => { e.stopPropagation(); setShowReportModal(true); }}
+                    className="w-full px-4 py-2 text-red-600 hover:bg-gray-200 flex items-center gap-2 hover:rounded-lg"
+                  >
+                    <Flag size={16} /> إبلاغ عن التغريدة
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        <div className="flex items-center gap-6 mt-4 text-gray-500 dark:text-gray-400 ml-12">
+          <button className="flex items-center gap-1 hover:text-green-500">
+            <ArrowUp size={16} /> {likes}
+          </button>
+          <button className="flex items-center gap-1 hover:text-red-500">
+            <ArrowDown size={16} /> {dislikes}
+          </button>
+          <button onClick={(e) => { e.stopPropagation(); if(onReply) onReply(); }} className="flex items-center gap-1 hover:text-blue-500">
+            <MessageSquare size={16} /> {tweet.replies?.length || 0}
+          </button>
+        </div>
+      </div>
+    </>
   );
 }

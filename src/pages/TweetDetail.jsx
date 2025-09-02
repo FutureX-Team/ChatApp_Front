@@ -1,46 +1,71 @@
+import { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
-import Navbar from "../components/Navbar";
 import Tweet from "../components/Tweet";
+import Modal from "../components/Modal";
+import api from "../api/api";
 
-// بيانات وهمية للتغريدات مع الردود
-const tweetsData = [
-  { 
-    id: 1, 
-    content: "مرحبًا! هذه أول تغريدة على المنصة.", 
-    user: { name: "أحمد", avatar: "/avatar1.png" }, 
-    location: "Riyadh",
-    replies: [
-      { id: 101, content: "رد جميل!", user: { name: "سارة", avatar: "/avatar2.png" }, replies: [] },
-      { id: 102, content: "موافق!", user: { name: "محمد", avatar: "/avatar3.png" }, replies: [] }
-    ]
-  },
-  { 
-    id: 2, 
-    content: "تجربة أخرى للتغريدات القصيرة.", 
-    user: { name: "سارة", avatar: "/avatar2.png" }, 
-    location: "Jeddah",
-    replies: []
-  },
-];
-
-export default function TweetDetail({ user, isAdmin, darkMode, setDarkMode }) {
+export default function TweetDetail({ user, onAddReply }) {
   const { id } = useParams();
-  const tweet = tweetsData.find(t => t.id === parseInt(id));
+  const [tweet, setTweet] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [showReplyModal, setShowReplyModal] = useState(false);
 
-  if (!tweet) return <p className="p-4">التغريدة غير موجودة</p>;
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try {
+        setLoading(true);
+        const res = await api.get(`/tweets/${id}`); // جلب التغريدة من السيرفر مباشرة
+        if (mounted) setTweet(res.data?.data || res.data);
+      } catch (err) {
+        console.error(err);
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    })();
+    return () => { mounted = false; };
+  }, [id]);
 
-  const handleReport = (id) => alert(`تم الإبلاغ عن التغريدة رقم ${id}`);
+  const handleAddReply = async (text) => {
+    if (!text.trim() || !tweet) return;
+    try {
+      const { data } = await api.post(`/tweets/${tweet.id}/reply`, { text });
+      const newReply = data?.data || data;
+      setTweet(prev => ({
+        ...prev,
+        replies: [newReply, ...(prev.replies || [])]
+      }));
+      if (onAddReply) onAddReply(tweet.id, newReply);
+      setShowReplyModal(false);
+    } catch (err) {
+      console.error(err);
+      alert("فشل إرسال الرد.");
+    }
+  };
+
+  if (loading) return <div className="text-center py-10">جاري تحميل التغريدة...</div>;
+  if (!tweet) return <div className="text-center py-10">التغريدة غير موجودة</div>;
 
   return (
-    <div>
-      <Navbar user={user} isAdmin={isAdmin} darkMode={darkMode} setDarkMode={setDarkMode} />
-      <div className="p-4 max-w-xl mx-auto">
-        <Tweet tweet={tweet} onReport={handleReport} />
-        <h3 className="text-lg font-bold mt-4 mb-2">الردود</h3>
-        {tweet.replies.map(reply => (
-          <Tweet key={reply.id} tweet={reply} onReport={handleReport} />
-        ))}
-      </div>
+    <div className="max-w-2xl mx-auto space-y-4">
+      <Tweet tweet={tweet} currentUser={user} />
+      <button
+        onClick={() => setShowReplyModal(true)}
+        className="w-full bg-blue-500 text-white py-2 rounded-full mt-4"
+      >
+        أضف ردك
+      </button>
+      {showReplyModal && (
+        <Modal onClose={() => setShowReplyModal(false)} onSubmit={handleAddReply} title="اكتب ردك" />
+      )}
+      {tweet.replies?.length > 0 && (
+        <div className="ml-5 pl-5 border-l-2 border-gray-200 dark:border-gray-700 space-y-4 mt-4">
+          <h3 className="text-lg font-bold mt-6 text-gray-900 dark:text-white">الردود</h3>
+          {tweet.replies.map(reply => (
+            <Tweet key={reply.id} tweet={reply} currentUser={user} onReply={() => setShowReplyModal(true)} />
+          ))}
+        </div>
+      )}
     </div>
   );
 }
