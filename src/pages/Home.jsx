@@ -5,21 +5,7 @@ import Modal from "../components/Modal";
 import { Plus } from "lucide-react";
 import api from "../api/api";
 
-// دالة لإضافة الرد بشكل متداخل
-const addReplyRecursive = (tweets, tweetId, reply) => {
-  return tweets.map(t => {
-    if (t.id === tweetId) {
-      return { ...t, replies: [reply, ...(t.replies || [])] };
-    }
-    if (t.replies?.length) {
-      return { ...t, replies: addReplyRecursive(t.replies, tweetId, reply) };
-    }
-    return t;
-  });
-};
-
-export default function Home({ user }) {
-  const [tweets, setTweets] = useState([]);
+export default function Home({ user, tweets, setTweets }) {
   const [showModal, setShowModal] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -42,7 +28,7 @@ export default function Home({ user }) {
       }
     })();
     return () => { mounted = false; };
-  }, []);
+  }, [setTweets]);
 
   const addTweet = async (text) => {
     if (!text.trim()) return;
@@ -55,10 +41,6 @@ export default function Home({ user }) {
       console.error(e);
       alert("فشل نشر التغريدة.");
     }
-  };
-
-  const addReplyToTweet = (tweetId, reply) => {
-    setTweets(prev => addReplyRecursive(prev, tweetId, reply));
   };
 
   return (
@@ -85,6 +67,7 @@ export default function Home({ user }) {
               key={tweet.id}
               tweet={tweet}
               currentUser={user}
+              // الضغط على زر الرد ينقلك لتفاصيل التغريدة
               onReply={() => navigate(`/tweet/${tweet.id}`, { state: { openReply: true } })}
             />
           ))}
