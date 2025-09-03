@@ -9,6 +9,7 @@ import Profile from "./pages/Profile";
 import Settings from "./pages/Settings";
 import AdminPage from "./pages/AdminPage";
 import TweetDetail from "./pages/TweetDetail";
+import AuthCallback from "./pages/AuthCallback";
 import api, { setAuthToken, rehydrateAuth } from "./api/api";
 
 export default function App() {
@@ -93,6 +94,7 @@ export default function App() {
             <Route path="/" element={<Home user={user} tweets={tweets} setTweets={setTweets} />} />
             <Route path="/login" element={<Login setUser={setUser} setIsAdmin={setIsAdmin} />} />
             <Route path="/register" element={<Register setUser={setUser} />} />
+            <Route path="/auth/callback" element={<AuthCallback setUser={setUser} setIsAdmin={setIsAdmin} />} />
             <Route path="/forgot-password" element={<ForgotPassword />} />
             <Route path="/profile" element={<Protected cond={!!user}><Profile user={user} tweets={tweets} /></Protected>} />
             <Route path="/settings" element={<Protected cond={!!user}><Settings user={user} onLogout={handleLogout} /></Protected>} />
