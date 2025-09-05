@@ -28,9 +28,9 @@ export default function Register({ setUser }) {
   };
 
   // NEW: Google OAuth
-  const handleGoogleLogin = () => {
-    window.location.href = `${process.env.REACT_APP_API_BASE_URL}/auth/google`;
-  };
+  // const handleGoogleLogin = () => {
+  //   window.location.href = `${process.env.REACT_APP_API_BASE_URL}/auth/google`;
+  // };
 
   return (
     <div className="flex justify-center items-center pt-10 sm:pt-16">
@@ -57,9 +57,9 @@ export default function Register({ setUser }) {
         </button>
 
         {/* NEW: divider + Google button (neutral border style) */}
-        <div className="text-center my-3 text-sm text-gray-600 dark:text-gray-400">أو</div>
+        {/* <div className="text-center my-3 text-sm text-gray-600 dark:text-gray-400">أو</div> */}
 
-        <button
+        {/* <button
           type="button"
           onClick={handleGoogleLogin}
           className="w-full py-3 rounded-lg font-semibold border border-gray-300 dark:border-gray-600 flex items-center justify-center gap-2"
@@ -71,7 +71,7 @@ export default function Register({ setUser }) {
             <path fill="#1976D2" d="M45 24c0-1.4-.1-2.4-.4-3.5H24v8h11.3c-.6 3-2.2 5.5-4.6 7.1l6.2 5C40.8 38.9 45 32.2 45 24z"/>
           </svg>
           متابعة باستخدام Google
-        </button>
+        </button> */}
 
         <div className="text-center mt-6 text-sm">
           <p className="text-gray-600 dark:text-gray-400">
