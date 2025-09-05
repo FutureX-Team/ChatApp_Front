@@ -5,7 +5,8 @@ import Modal from "../components/Modal";
 import { Plus } from "lucide-react";
 import api from "../api/api";
 
-const normalize = (res) => (Array.isArray(res.data) ? res.data : (res.data?.data ?? res.data));
+const normalize = (res) =>
+  Array.isArray(res.data) ? res.data : (res.data?.data ?? res.data);
 
 export default function Home({ user, tweets, setTweets }) {
   const [showModal, setShowModal] = useState(false);
@@ -13,46 +14,81 @@ export default function Home({ user, tweets, setTweets }) {
   const [error, setError] = useState("");
   const navigate = useNavigate();
 
+  // ✅ أماكن ككائنات + معرف المكان المحدد
+  const [places, setPlaces] = useState([]);
+  const [selectedPlaceId, setSelectedPlaceId] = useState("14"); // معرف المكان الافتراضي
+
   useEffect(() => {
     const ac = new AbortController();
     (async () => {
       try {
         setError("");
         setLoading(true);
-        const res = await api.get("/tweets", { signal: ac.signal });
-        const list = normalize(res);
-        setTweets(list);
-      } catch (e) {
-        if (e.name !== "CanceledError") {
-          console.error(e);
-          setError("تعذر تحميل التغريدات.");
-        }
-      } finally {
-        if (!ac.signal.aborted) setLoading(false);
+
+        if (!places.length) {
+        const re = await api.get("/places");
+        const list = Array.isArray(re.data) ? re.data : (re.data?.data ?? []);
+        setPlaces(list);
       }
-    })();
-    return () => ac.abort();
-  }, [setTweets]);
-
-  const addTweet = useCallback(async (text) => {
-    if (!text.trim()) return;
-    try {
-      const res = await api.post("/tweets", { text });
-      let created = normalize(res);
-
-      // If backend didn't include author, fetch full tweet so UI can show username immediately
-      if (!created.user) {
-        const full = await api.get(`/tweets/${created.id}`);
-        created = normalize(full);
-      }
-
-      setTweets((prev) => [created, ...(prev || [])]);
-      setShowModal(false);
+       if (selectedPlaceId === "default") {
+         setSelectedPlaceId("14"); // معرف المكان الافتراضي (عام)
+       }
+        const res = await api.get("/tweets/filter", {
+        signal: ac.signal,
+        params: { place_id: selectedPlaceId || undefined }, // undefined يحذف البارام لو "الجميع"
+      });const list = Array.isArray(res.data) ? res.data : (res.data?.data ?? []);
+      setTweets(list);
     } catch (e) {
-      console.error(e);
-      alert("فشل نشر التغريدة.");
+      if (e.name !== "CanceledError") {
+        console.error(e);
+        setError("تعذر تحميل التغريدات.");
+      }
+    } finally {
+      if (!ac.signal.aborted) setLoading(false);
     }
-  }, [setTweets]);
+  })();
+  return () => ac.abort();
+}, [selectedPlaceId, setTweets, places.length]);
+
+  const addTweet = useCallback(
+    async (payload) => {
+      let text, place_id, location;
+
+      if (typeof payload === "string") {
+        text = payload;
+      } else if (payload && typeof payload === "object") {
+        ({ text, place_id, location } = payload);
+      }
+
+      text = (text ?? "").toString();
+      if (!text.trim()) return;
+
+      // ✅ استخدم selectedPlaceId إذا لم يُمرَّر place_id من المودال
+      place_id = place_id ?? selectedPlaceId;
+
+      try {
+        const res = await api.post("/tweets", { text, place_id, location });
+        let created = normalize(res);
+
+        if (!created.user && created?.id) {
+          const full = await api.get(`/tweets/${created.id}`);
+          created = normalize(full);
+        }
+
+        setTweets((prev) => [created, ...(prev || [])]);
+        setShowModal(false);
+      } catch (e) {
+        if (e?.response?.status === 401 || e?.response?.status === 419) {
+          alert("يلزم تسجيل الدخول لنشر تغريدة.");
+          navigate("/login");
+          return;
+        }
+        console.error(e);
+        alert("فشل نشر التغريدة.");
+      }
+    },
+    [setTweets, navigate, selectedPlaceId]
+  );
 
   return (
     <div className="max-w-2xl mx-auto">
@@ -65,11 +101,37 @@ export default function Home({ user, tweets, setTweets }) {
       </button>
 
       {showModal && (
-        <Modal onClose={() => setShowModal(false)} onSubmit={addTweet} title="تغريدة جديدة" />
+        <Modal
+          onClose={() => setShowModal(false)}
+          onSubmit={addTweet}
+          title="تغريدة جديدة"
+        />
       )}
 
+      <div className="text-center text-2xl font-bold mb-6 mt-4">
+        <div className="flex flex-col gap-3 mt-3 text-sm">
+          <div className="flex items-center gap-2">
+            <label htmlFor="place-list">اختر مكان التغريدة:</label>
+            <select
+              id="place-list"
+              value={selectedPlaceId}
+              onChange={(e) => setSelectedPlaceId(e.target.value)}
+              className="border rounded p-1"
+            >
+              <option value="default">عام</option>
+  {places.map(p => {
+    if (p.id===14) return null; // تخطي "عام" لأنه معرف افتراضي
+    return <option key={p.id} value={p.id}>{p.location_name}</option>;
+  })}
+</select>
+          </div>
+        </div>
+      </div>
+
       {loading && <div className="py-8 text-center">جاري تحميل التغريدات...</div>}
-      {error && !loading && <div className="py-4 text-center text-red-600">{error}</div>}
+      {error && !loading && (
+        <div className="py-4 text-center text-red-600">{error}</div>
+      )}
 
       {!loading && (
         <div className="space-y-4">
@@ -78,7 +140,9 @@ export default function Home({ user, tweets, setTweets }) {
               key={tweet.id}
               tweet={tweet}
               currentUser={user}
-              onReply={() => navigate(`/tweet/${tweet.id}`, { state: { openReply: true } })}
+              onReply={() =>
+                navigate(`/tweet/${tweet.id}`, { state: { openReply: true } })
+              }
             />
           ))}
         </div>
