@@ -9,10 +9,28 @@ import Profile from "./pages/Profile";
 import Settings from "./pages/Settings";
 import AdminPage from "./pages/AdminPage";
 import TweetDetail from "./pages/TweetDetail";
+import AuthCallback from "./pages/AuthCallback";
 import api, { setAuthToken, rehydrateAuth } from "./api/api";
 
 export default function App() {
-  const [darkMode, setDarkMode] = useState(false);
+  // --- START: تعديلات الوضع المظلم الشاملة ---
+
+  // قراءة الوضع المحفوظ من localStorage عند بدء التشغيل
+  const [darkMode, setDarkMode] = useState(() => localStorage.getItem("theme") === "dark");
+
+  // useEffect لتطبيق التغييرات على مستوى الـ HTML وحفظها
+  useEffect(() => {
+    const root = window.document.documentElement;
+    if (darkMode) {
+      root.classList.add('dark');
+      localStorage.setItem('theme', 'dark');
+    } else {
+      root.classList.remove('dark');
+      localStorage.setItem('theme', 'light');
+    }
+  }, [darkMode]);
+
+  // --- END: نهاية التعديلات ---
 
   const start = (() => {
     const { token, cachedUser } = rehydrateAuth();
@@ -78,14 +96,15 @@ export default function App() {
 
   if (authLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center bg-gray-100 dark:bg-gray-900 text-black dark:text-white">
         جارِ التحقق من الجلسة...
       </div>
     );
   }
 
   return (
-    <div className={darkMode ? "dark bg-gray-900 text-white min-h-screen" : "bg-gray-100 text-black min-h-screen"}>
+    // لم نعد بحاجة للكلاس هنا لأن التحكم يتم عبر <html>
+    <div className="min-h-screen">
       <Router>
         <Navbar user={user} isAdmin={isAdmin} darkMode={darkMode} setDarkMode={setDarkMode} onLogout={handleLogout} />
         <main className="container mx-auto p-4">
@@ -93,17 +112,18 @@ export default function App() {
             <Route path="/" element={<Home user={user} tweets={tweets} setTweets={setTweets} />} />
             <Route path="/login" element={<Login setUser={setUser} setIsAdmin={setIsAdmin} />} />
             <Route path="/register" element={<Register setUser={setUser} />} />
+            <Route path="/auth/callback" element={<AuthCallback setUser={setUser} setIsAdmin={setIsAdmin} />} />
             <Route path="/forgot-password" element={<ForgotPassword />} />
             <Route path="/profile" element={<Protected cond={!!user}><Profile user={user} tweets={tweets} /></Protected>} />
-            <Route path="/settings" element={<Protected cond={!!user}><Settings user={user} onLogout={handleLogout} /></Protected>} />
+            <Route path="/settings" element={<Protected cond={!!user}><Settings  onLogout={handleLogout} /></Protected>} />
             <Route path="/reports" element={
               <Protected cond={!!user && isAdmin} to="/">
                 <AdminPage user={user} isAdmin={isAdmin} tweets={tweets} deleteTweet={() => {}} />
               </Protected>
             } />
-            <Route 
-              path="/tweet/:id" 
-              element={<TweetDetail user={user} tweets={tweets} deleteTweet={() => {}} isAdmin={isAdmin} onAddReply={onAddReply} />} 
+            <Route
+              path="/tweet/:id"
+              element={<TweetDetail user={user} tweets={tweets} deleteTweet={() => {}} isAdmin={isAdmin} onAddReply={onAddReply} />}
             />
             <Route path="*" element={<div className="text-center py-10"><h2>404 - الصفحة غير موجودة</h2></div>} />
           </Routes>
