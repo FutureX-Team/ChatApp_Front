@@ -128,7 +128,11 @@ export default function Tweet({ tweet, currentUser, onReply }) {
             <div className="ml-3">
               {/* header: username + time */}
               <div className="flex items-baseline gap-2">
+
                 <h3 className="font-bold mr-[10px]">{authorUsername}</h3>
+
+                <h3 className="font-bold">{authorUsername}</h3>
+
                 <span className="text-xs text-gray-500 dark:text-gray-400">
                   {timeAgo(tweet.created_at)}
                 </span>

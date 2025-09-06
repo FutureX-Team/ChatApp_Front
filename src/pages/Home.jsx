@@ -116,7 +116,11 @@ export default function Home({ user, tweets, setTweets }) {
               id="place-list"
               value={selectedPlaceId}
               onChange={(e) => setSelectedPlaceId(e.target.value)}
+
               className="border rounded p-1 text-black "
+
+              className="border rounded p-1"
+
             >
               <option value="default">عام</option>
   {places.map(p => {
