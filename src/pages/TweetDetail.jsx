@@ -40,7 +40,9 @@ const text = typeof replyText === "string" ? replyText.trim() : replyText?.text?
 if (!text) return;
 
     try {
+
       const res = await api.post(`/tweets/${tweet.id}/reply`, { text });
+
 
       let created = normalize(res);
 
