@@ -34,10 +34,12 @@ export default function Login({ setUser, setIsAdmin }) {
     }
   };
 
+
   const handleGoogleLogin = () => {
     const apiBase = process.env.REACT_APP_API_BASE_URL;
     window.location.href = `${apiBase}/auth/google`;
   };
+
 
   return (
     <div className="flex justify-center items-center pt-10 sm:pt-16">
@@ -91,6 +93,7 @@ export default function Login({ setUser, setIsAdmin }) {
           {loading ? "جاري الدخول..." : "تسجيل الدخول"}
         </button>
 
+
         <div className="text-center my-3 text-sm text-gray-600 dark:text-gray-400">أو</div>
 
         <button
@@ -98,6 +101,7 @@ export default function Login({ setUser, setIsAdmin }) {
           onClick={handleGoogleLogin}
           className="w-full py-3 rounded-lg font-semibold border border-gray-300 dark:border-gray-600 flex items-center justify-center gap-2"
         >
+
           <svg width="18" height="18" viewBox="0 0 48 48" aria-hidden="true">
             <path
               fill="#FFC107"
@@ -120,6 +124,7 @@ export default function Login({ setUser, setIsAdmin }) {
         </button>
 
         <div className="text-center mt-6 text-sm space-y-2">
+
           <p className="text-gray-600 dark:text-gray-400">
             ليس لديك حساب؟
             <Link to="/register" className="font-semibold text-blue-500 hover:underline mr-1">

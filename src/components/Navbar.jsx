@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Home, Sun, Moon } from "lucide-react";
+import { Home, Sun, Moon, LogIn  } from "lucide-react";
 import Avatar from "./Avatar";
 
 export default function Navbar({ user, isAdmin, darkMode, setDarkMode, onLogout }) {
@@ -48,14 +48,18 @@ export default function Navbar({ user, isAdmin, darkMode, setDarkMode, onLogout 
             </Link>
           )}
 
-          <div className="relative" ref={dropdownRef}>
+          <div className="flex items-center gap-4 " ref={dropdownRef}>
             {user ? (
               <div className="cursor-pointer" onClick={() => setDropdownOpen(prev => !prev)}>
                 <Avatar name={user.name} />
               </div>
             ) : (
-              <Link to="/login" className="text-sm font-semibold p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700">
-                تسجيل الدخول
+              <Link 
+                to="/login" 
+                className="p-1 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 "
+                title="تسجيل الدخول" // إضافة تلميح للمستخدم عند المرور على الأيقونة
+              >
+                <LogIn className=" text-gray-700 dark:text-gray-200" />
               </Link>
             )}
 
@@ -65,7 +69,7 @@ export default function Navbar({ user, isAdmin, darkMode, setDarkMode, onLogout 
                 className="absolute left-0 mt-2 bg-white dark:bg-gray-700 shadow-xl rounded-lg z-50 overflow-hidden"
                 // ✅ 1. تحديد عرض ثابت للقائمة
                 // ✅ 2. تحريك القائمة لليسار لتوسيطها تحت الأيقونة
-                style={{ width: '12rem', transform: 'translateX(0)' }} 
+                style={{ width: '12rem', transform: 'translate(10px, 86px)' }} 
               >
                 <div className="p-3 border-b border-gray-200 dark:border-gray-600">
                   <p className="font-bold text-sm text-right">{user.name}</p>

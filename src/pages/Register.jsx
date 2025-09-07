@@ -27,6 +27,7 @@ export default function Register({ setUser }) {
     }
   };
 
+
   const handleGoogleLogin = () => {
     const apiBase = process.env.REACT_APP_API_BASE_URL;
     window.location.href = `${apiBase}/auth/google`;
@@ -104,11 +105,13 @@ export default function Register({ setUser }) {
         <div className="text-center my-3 text-sm text-gray-600 dark:text-gray-400">أو</div>
 
         <button
+
           type="button"
           onClick={handleGoogleLogin}
           className="w-full py-3 rounded-lg font-semibold border border-gray-300 dark:border-gray-600 flex items-center justify-center gap-2"
         >
           <svg width="18" height="18" viewBox="0 0 48 48" aria-hidden="true">
+
             <path
               fill="#FFC107"
               d="M43.6 20.5H42V20H24v8h11.3C33.6 32.1 29.3 35 24 35c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.9 1.2 8 3.1l5.7-5.7C34.2 5.1 29.3 3 24 3 12.3 3 3 12.3 3 24s9.3 21 21 21c10.5 0 19.5-7.6 21-18v-6.5z"
@@ -128,6 +131,7 @@ export default function Register({ setUser }) {
           </svg>
           متابعة باستخدام Google
         </button>
+
 
         <div className="text-center mt-6 text-sm">
           <p className="text-gray-600 dark:text-gray-400">

@@ -36,9 +36,14 @@ export default function TweetDetail({ user }) {
   }, [initialOpen]);
 
   const handleAddReply = async (replyText) => {
-    if (!replyText?.trim()) return;
+const text = typeof replyText === "string" ? replyText.trim() : replyText?.text?.trim();
+if (!text) return;
+
     try {
-      const res = await api.post(`/tweets/${tweet.id}/reply`, { text: replyText });
+
+      const res = await api.post(`/tweets/${tweet.id}/reply`, { text });
+
+
       let created = normalize(res);
 
       // ensure the reply includes its user for immediate render
@@ -80,12 +85,12 @@ export default function TweetDetail({ user }) {
 
       {user && (
         <div className="px-4 py-2">
-          <button
+          {/* <button
             onClick={() => setShowReplyModal(true)}
             className="w-full bg-blue-500 text-white py-2 rounded-full font-semibold hover:bg-blue-600 transition-colors flex items-center justify-center gap-2"
           >
             إضافة رد
-          </button>
+          </button> */}
         </div>
       )}
 
