@@ -66,7 +66,9 @@ export default function Modal({ onClose, onSubmit, maxChars = 280, title }) {
               id="location-list"
               value={location}
               onChange={(e) => setLocation(e.target.value)}
-              className="border rounded p-1 text-black "
+
+              className="border rounded p-1"
+
             >
               <option value="public">عام</option>
               <option value="main_building">المبنى الرئيسي</option>
