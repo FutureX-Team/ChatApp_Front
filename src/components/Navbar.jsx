@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Home, Sun, Moon, LogIn  } from "lucide-react";
+
 import Avatar from "./Avatar";
 
 export default function Navbar({ user, isAdmin, darkMode, setDarkMode, onLogout }) {
@@ -51,7 +52,7 @@ export default function Navbar({ user, isAdmin, darkMode, setDarkMode, onLogout 
           <div className="flex items-center gap-4 " ref={dropdownRef}>
             {user ? (
               <div className="cursor-pointer" onClick={() => setDropdownOpen(prev => !prev)}>
-                <Avatar name={user.name} />
+                <Avatar name={user.username || user.name} url={user.avatar_url} />
               </div>
             ) : (
               <Link 
@@ -72,13 +73,16 @@ export default function Navbar({ user, isAdmin, darkMode, setDarkMode, onLogout 
                 style={{ width: '12rem', transform: 'translate(10px, 86px)' }} 
               >
                 <div className="p-3 border-b border-gray-200 dark:border-gray-600">
-                  <p className="font-bold text-sm text-right">{user.name}</p>
+                  <p className="font-bold text-sm text-right">{user.username}</p>
                 </div>
                 <Link to="/profile" onClick={() => setDropdownOpen(false)} className="block px-4 py-2 text-right text-sm text-black dark:text-white hover:bg-gray-100 dark:hover:bg-gray-600">
                   الملف الشخصي
                 </Link>
                 <Link to="/settings" onClick={() => setDropdownOpen(false)} className="block px-4 py-2 text-right text-sm text-black dark:text-white hover:bg-gray-100 dark:hover:bg-gray-600">
                   الإعدادات
+                </Link>
+                <Link to="/Support" onClick={() => setDropdownOpen(false)} className="block px-4 py-2 text-right text-sm text-black dark:text-white hover:bg-gray-100 dark:hover:bg-gray-600">
+                  الدعم
                 </Link>
                 <div className="border-t border-gray-200 dark:border-gray-600">
                   <button onClick={handleLogoutClick} className="w-full text-right px-4 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-gray-100 dark:hover:bg-gray-600">
