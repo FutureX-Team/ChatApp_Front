@@ -1,37 +1,67 @@
 // src/api.js
-import axios from 'axios';
+import axios from "axios";
 
-// ✅ !! مهم جدًا: عدّل هذا الرابط إلى رابط الخادم الحقيقي الخاص بك !!
+const TOKEN_KEY = "token";
+const USER_KEY = "user";
+
 const api = axios.create({
-  baseURL: 'http://localhost:8000/api', // مثال لخادم محلي
-  headers: {
-    'Content-Type': 'application/json',
-    'Accept': 'application/json',
-  },
-} );
+  baseURL: process.env.REACT_APP_API_BASE_URL,
+  headers: { "Content-Type": "application/json", Accept: "application/json" },
+  withCredentials: false, // Bearer only
+});
 
-// دالة لضبط التوكن في الهيدر
 export const setAuthToken = (token) => {
   if (token) {
-    api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-    localStorage.setItem('token', token);
+    api.defaults.headers.common.Authorization = `Bearer ${token}`;
+    localStorage.setItem(TOKEN_KEY, token);
   } else {
-    delete api.defaults.headers.common['Authorization'];
-    localStorage.removeItem('token');
+    delete api.defaults.headers.common.Authorization;
+    localStorage.removeItem(TOKEN_KEY);
   }
 };
 
-// معالج الأخطاء التلقائي (Interceptor)
+export const setUserCache = (user) => {
+  if (user) {
+    localStorage.setItem(USER_KEY, JSON.stringify(user));
+  } else {
+    localStorage.removeItem(USER_KEY);
+  }
+};
+
+export const rehydrateAuth = () => {
+  const token = localStorage.getItem(TOKEN_KEY);
+  if (token) {
+    api.defaults.headers.common.Authorization = `Bearer ${token}`;
+  }
+  try {
+    const cachedUser = localStorage.getItem(USER_KEY);
+    return { token, cachedUser: cachedUser ? JSON.parse(cachedUser) : null };
+  } catch {
+    return { token, cachedUser: null };
+  }
+};
+
+// --- Interceptors ---
 api.interceptors.response.use(
-  (response) => response,
-  (error) => {
-    if (error.response && error.response.status === 401) {
+  (res) => {
+    // normalize response payload
+    const d = res.data;
+    res.data = Array.isArray(d) ? d : (d?.data ?? d);
+    return res;
+  },
+  (err) => {
+    if (err?.response?.status === 401) {
       setAuthToken(null);
-      // إعادة توجيه المستخدم إلى صفحة تسجيل الدخول
-      window.location.href = '/login';
+      localStorage.removeItem(USER_KEY);
+      if (window.location.pathname !== "/login") {
+        window.location.href = "/login";
+      }
     }
-    return Promise.reject(error);
+    return Promise.reject(err);
   }
 );
+
+// auto-rehydrate once on load
+rehydrateAuth();
 
 export default api;
