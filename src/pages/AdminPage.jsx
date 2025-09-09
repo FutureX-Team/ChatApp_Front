@@ -130,8 +130,16 @@ const SupportRequestsTab = () => {
   const fetchRequests = async (signal) => {
     try {
       setLoading(true);
-      const res = await api.get("/admin/support-requests", { signal });
-      setRequests(normalize(res));
+      const res = await api.get("/admin/support", { signal });
+      const list = normalize(res).map((r) => ({
+       id: r.id ?? r.ticket_id ?? r._id,                  // أي مفتاح متاح
+       username: r.username ?? r.name ?? "غير معروف",
+       email: r.email ?? null,
+       message: r.message ?? r.text ?? "",
+       // السيرفر يرسلها باسم "time" → نحولها إلى created_at الذي تستخدمه الواجهة
+      created_at: r.created_at ?? r.time ?? r.createdAt ?? null,
+     }));
+     setRequests(list);
     } catch (e) {
       if (e.name !== "CanceledError") console.error(e);
     } finally {
@@ -155,7 +163,9 @@ const SupportRequestsTab = () => {
           <p className="font-bold text-sm mb-1">الاسم: {req.username}</p>
           {req.email && <p className="text-sm mb-1">البريد: {req.email}</p>}
           <p className="text-sm mb-1">الرسالة: {req.message}</p>
-          <p className="text-xs text-gray-500 dark:text-gray-400">تاريخ الإرسال: {new Date(req.created_at).toLocaleString()}</p>
+          <p className="text-xs text-gray-500 dark:text-gray-400">
+            تاريخ الإرسال: {req.created_at ? new Date(req.created_at).toLocaleString() : "—"}
+          </p>
         </div>
       ))}
     </div>

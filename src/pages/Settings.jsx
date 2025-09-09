@@ -1,10 +1,10 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import api, { rehydrateAuth, setAuthToken } from "../api/api";
+import api, { rehydrateAuth } from "../api/api";
 import Avatar from "../components/Avatar";
 import { Pencil } from "lucide-react";
 
-export default function Settings({ user: userProp, onLogout, setUser }) {
+export default function Settings({ user: userProp, setUser }) {
   const navigate = useNavigate();
 
   const [loading, setLoading] = useState(true);
@@ -85,18 +85,18 @@ export default function Settings({ user: userProp, onLogout, setUser }) {
     }
   };
 
-  const handleLogoutClick = async () => {
-    try {
-      await api.post("/logout");
-    } catch (e) {
-      console.error(e);
-    } finally {
-      setAuthToken(null);
-      localStorage.removeItem("user");
-      onLogout && onLogout();
-      navigate("/login");
-    }
-  };
+  // const handleLogoutClick = async () => {
+  //   try {
+  //     await api.post("/logout");
+  //   } catch (e) {
+  //     console.error(e);
+  //   } finally {
+  //     setAuthToken(null);
+  //     localStorage.removeItem("user");
+  //     onLogout && onLogout();
+  //     navigate("/login");
+  //   }
+  // };
 
   if (loading) return <div className="text-center p-10">جاري تحميل الإعدادات...</div>;
 
