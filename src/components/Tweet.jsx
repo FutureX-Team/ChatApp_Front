@@ -65,7 +65,6 @@ export default function Tweet({ tweet, currentUser, onReply, onDelete }) {
     !!currentUser &&
     (
       currentUser.id === (tweet.user_id ?? tweet.user?.id) ||
-      currentUser.is_admin === true ||
       currentUser.role === "admin"
     );
 
