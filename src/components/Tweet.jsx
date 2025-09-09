@@ -132,7 +132,7 @@ export default function Tweet({ tweet, currentUser, onReply, onDelete }) {
     e.stopPropagation();
     setDropdownOpen(false);
     if (!canDelete) return;
-    if (!confirm("هل أنت متأكد من حذف التغريدة؟ الإجراء غير قابل للتراجع.")) return;
+    if (!window.confirm("هل أنت متأكد من حذف التغريدة؟ الإجراء غير قابل للتراجع.")) return;
     try {
       await api.delete(`/tweets/${tweet.id}`);
       // دع الأب يقرر ماذا يفعل بعد الحذف (إزالة العنصر أو الرجوع)
