@@ -1,12 +1,12 @@
 // src/components/Tweet.jsx
 import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import { ArrowUp, ArrowDown, MessageSquare, MoreHorizontal, Flag } from "lucide-react";
+import { ArrowUp, ArrowDown, MessageSquare, MoreHorizontal, Flag, Trash2 } from "lucide-react";
 import Avatar from "./Avatar";
 import ReportModal from "./ReportModal";
 import api from "../api/api";
 
-export default function Tweet({ tweet, currentUser, onReply }) {
+export default function Tweet({ tweet, currentUser, onReply, onDelete }) {
   // ===== Guards (بدون return مبكر)
   const invalid = !tweet || !tweet.id;
 
@@ -61,13 +61,21 @@ export default function Tweet({ tweet, currentUser, onReply }) {
   const dropdownRef = useRef(null);
   const navigate = useNavigate();
 
+  const canDelete =
+    !!currentUser &&
+    (
+      currentUser.id === (tweet.user_id ?? tweet.user?.id) ||
+      currentUser.is_admin === true ||
+      currentUser.role === "admin"
+    );
+
   // ===== Effects
   // مزامنة العدادات عند تغير التغريدة
   useEffect(() => {
     setLikes(Number(tweet?.up_count) || 0);
     setDislikes(Number(tweet?.down_count) || 0);
     setReplyDelta(0);
-  }, [tweet?.up_count, tweet?.down_count, tweet?.id]);
+  }, [tweet?.up_count, tweet?.down_count, tweet?.replies_count, tweet?.id]);
 
   // قراءة تصويت المستخدم المخزن محليًا
   useEffect(() => {
@@ -91,8 +99,6 @@ export default function Tweet({ tweet, currentUser, onReply }) {
   const handleLike = async (e) => {
     e.stopPropagation();
     if (!currentUser || !tweet?.id) return alert("سجّل الدخول أولاً");
-
-    // لو تبغى السماح بالتبديل/الإلغاء، فعّل المنطق أدناه
     if (voted) return;
 
     setVoted("like");
@@ -142,6 +148,22 @@ export default function Tweet({ tweet, currentUser, onReply }) {
     } catch (err) {
       console.error(err);
       alert("حدث خطأ أثناء إرسال البلاغ");
+    }
+  };
+
+  const handleDelete = async (e) => {
+    e.stopPropagation();
+    setDropdownOpen(false);
+    if (!canDelete) return;
+
+    if (!window.confirm("هل أنت متأكد من حذف التغريدة؟ الإجراء غير قابل للتراجع.")) return;
+
+    try {
+      await api.delete(`/tweets/${tweet.id}`);
+      onDelete?.(tweet.id);
+    } catch (err) {
+      console.error(err);
+      alert("تعذّر حذف التغريدة");
     }
   };
 
@@ -202,10 +224,18 @@ export default function Tweet({ tweet, currentUser, onReply }) {
               </button>
 
               {dropdownOpen && (
-                <div className="absolute -right-[164px] mt-1 w-48 bg-white dark:bg-gray-700 shadow-xl rounded-lg z-20">
+                <div className="absolute right-0 mt-1 w-48 bg-white dark:bg-gray-700 shadow-xl rounded-lg z-20 overflow-hidden">
+                  {canDelete && (
+                    <button
+                      onClick={handleDelete}
+                      className="w-full px-4 py-2 text-gray-800 dark:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-600 flex items-center gap-2"
+                    >
+                      <Trash2 size={16} /> حذف التغريدة
+                    </button>
+                  )}
                   <button
                     onClick={() => setShowReportModal(true)}
-                    className="w-full px-4 py-2 text-red-600 hover:bg-gray-200 dark:hover:bg-gray-600 flex items-center gap-2 hover:rounded-lg"
+                    className="w-full px-4 py-2 text-red-600 hover:bg-gray-100 dark:hover:bg-gray-600 flex items-center gap-2"
                   >
                     <Flag size={16} /> إبلاغ عن التغريدة
                   </button>
@@ -216,7 +246,10 @@ export default function Tweet({ tweet, currentUser, onReply }) {
         </div>
 
         {/* actions */}
-        <div className="flex items-center gap-6 mt-4 text-gray-500 dark:text-gray-400 ml-12" onClick={(e) => e.stopPropagation()}>
+        <div
+          className="flex items-center gap-6 mt-4 text-gray-500 dark:text-gray-400 ml-12"
+          onClick={(e) => e.stopPropagation()}
+        >
           <button
             onClick={handleLike}
             disabled={!!voted}
