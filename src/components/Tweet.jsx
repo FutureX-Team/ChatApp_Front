@@ -1,69 +1,21 @@
-// components/Tweet.jsx
-import { useState, useRef, useEffect } from "react";
-import { Link } from "react-router-dom";
-import { ArrowUp, ArrowDown, MessageSquare, MoreHorizontal, Flag, Trash2 } from "lucide-react";
+// src/components/Tweet.jsx
+import { useState, useEffect, useRef, useMemo, useCallback } from "react";
+import { useNavigate, Link } from "react-router-dom";
+import { ArrowUp, ArrowDown, MessageSquare, MoreHorizontal, Flag } from "lucide-react";
 import Avatar from "./Avatar";
 import ReportModal from "./ReportModal";
 import api from "../api/api";
 
-export default function Tweet({ tweet, currentUser, onReply, onDelete }) {
-  const [likes, setLikes] = useState(tweet.up_count ?? 0);
-  const [dislikes, setDislikes] = useState(tweet.down_count ?? 0);
-  const [replyCount, setReplyCount] = useState(
-    tweet.replies_count ?? (Array.isArray(tweet.replies) ? tweet.replies.length : 0)
-  );
+export default function Tweet({ tweet, currentUser, onReply }) {
+  // ===== Guards (بدون return مبكر)
+  const invalid = !tweet || !tweet.id;
 
-  const [dropdownOpen, setDropdownOpen] = useState(false);
-  const [showReportModal, setShowReportModal] = useState(false);
-  const dropdownRef = useRef(null);
-
-  const [voted, setVoted] = useState(null);
-
-  const authorUsername =
-    tweet?.user?.username ?? tweet?.user?.name ?? tweet?.guest?.name ?? "Unknown";
-  const isReply = Boolean(tweet.reply_to_tweet_id);
-
-  // هل المستخدم يملك صلاحية الحذف؟
-  const canDelete =
-    !!currentUser &&
-    (
-      currentUser.id === (tweet.user_id ?? tweet.user?.id) ||
-      currentUser.is_admin === true ||
-      currentUser.role === "admin"
-    );
-
-  useEffect(() => {
-    const key = voteKey(tweet.id, currentUser?.id);
-    const saved = localStorage.getItem(key);
-    if (saved === "like" || saved === "dislike") setVoted(saved);
-  }, [tweet.id, currentUser?.id]);
-
-  useEffect(() => {
-    setLikes(tweet.up_count ?? 0);
-    setDislikes(tweet.down_count ?? 0);
-    setReplyCount(tweet.replies_count ?? (Array.isArray(tweet.replies) ? tweet.replies.length : 0));
-  }, [tweet]);
-
-  // إغلاق القائمة عند الضغط خارجها أو زر Esc
-  useEffect(() => {
-    const onDocClick = (e) => {
-      if (!dropdownRef.current) return;
-      if (!dropdownRef.current.contains(e.target)) setDropdownOpen(false);
-    };
-    const onEsc = (e) => e.key === "Escape" && setDropdownOpen(false);
-    document.addEventListener("mousedown", onDocClick);
-    document.addEventListener("keydown", onEsc);
-    return () => {
-      document.removeEventListener("mousedown", onDocClick);
-      document.removeEventListener("keydown", onEsc);
-    };
-  }, []);
-
-  const voteKey = (tweetId, userId) => `vote:${tweetId}:${userId ?? "guest"}`;
-
+  // ===== Helpers
+  const voteKey = useCallback((tweetId, userId) => `vote:${tweetId}:${userId ?? "guest"}`, []);
   const timeAgo = (ts) => {
     if (!ts) return "";
     const d = new Date(ts);
+    if (isNaN(d)) return "";
     const s = Math.max(1, Math.floor((Date.now() - d.getTime()) / 1000));
     if (s < 60) return `${s} ث`;
     const m = Math.floor(s / 60);
@@ -75,17 +27,81 @@ export default function Tweet({ tweet, currentUser, onReply, onDelete }) {
     return d.toLocaleString("ar-SA", { hour12: false });
   };
 
+  // ===== Derived
+  const authorUsername = useMemo(
+    () => (tweet?.user?.username ?? tweet?.user?.name ?? tweet?.guest?.name ?? "Unknown"),
+    [tweet]
+  );
+  const authorAvatar = tweet?.user?.avatar_url || "";
+  const isReply = Boolean(tweet?.reply_to_tweet_id);
+
+  const baseReplyCount = useMemo(() => {
+    const direct =
+      tweet?.replies_count ??
+      tweet?.reply_count ??
+      tweet?.repliesCount ??
+      tweet?.replies_count_agg ??
+      null;
+
+    if (typeof direct === "number") return direct;
+    if (typeof direct === "string" && /^\d+$/.test(direct)) return Number(direct);
+    if (Array.isArray(tweet?.replies)) return tweet.replies.length;
+    if (Array.isArray(tweet?.replies?.data)) return tweet.replies.data.length;
+    return 0;
+  }, [tweet]);
+
+  // ===== State
+  const [likes, setLikes] = useState(Number(tweet?.up_count) || 0);
+  const [dislikes, setDislikes] = useState(Number(tweet?.down_count) || 0);
+  const [replyDelta, setReplyDelta] = useState(0); // زيادة تفاؤلية فقط
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [showReportModal, setShowReportModal] = useState(false);
+  const [voted, setVoted] = useState(null); // "like" | "dislike" | null
+
+  const dropdownRef = useRef(null);
+  const navigate = useNavigate();
+
+  // ===== Effects
+  // مزامنة العدادات عند تغير التغريدة
+  useEffect(() => {
+    setLikes(Number(tweet?.up_count) || 0);
+    setDislikes(Number(tweet?.down_count) || 0);
+    setReplyDelta(0);
+  }, [tweet?.up_count, tweet?.down_count, tweet?.id]);
+
+  // قراءة تصويت المستخدم المخزن محليًا
+  useEffect(() => {
+    if (!tweet?.id) return;
+    const key = voteKey(tweet.id, currentUser?.id);
+    const saved = localStorage.getItem(key);
+    setVoted(saved === "like" || saved === "dislike" ? saved : null);
+  }, [tweet?.id, currentUser?.id, voteKey]);
+
+  // إغلاق القائمة عند النقر خارجها
+  useEffect(() => {
+    if (!dropdownOpen) return;
+    const onDocClick = (e) => {
+      if (!dropdownRef.current?.contains(e.target)) setDropdownOpen(false);
+    };
+    document.addEventListener("mousedown", onDocClick);
+    return () => document.removeEventListener("mousedown", onDocClick);
+  }, [dropdownOpen]);
+
+  // ===== Actions
   const handleLike = async (e) => {
     e.stopPropagation();
-    if (!currentUser) return alert("سجّل الدخول أولاً");
+    if (!currentUser || !tweet?.id) return alert("سجّل الدخول أولاً");
+
+    // لو تبغى السماح بالتبديل/الإلغاء، فعّل المنطق أدناه
     if (voted) return;
+
     setVoted("like");
     localStorage.setItem(voteKey(tweet.id, currentUser?.id), "like");
-    setLikes((l) => l + 1);
+    setLikes((l) => l + 1); // تفاؤلي
     try {
       const res = await api.post(`/tweets/${tweet.id}/like`);
-      setLikes(res.data?.up_count ?? likes + 1);
-      setDislikes(res.data?.down_count ?? dislikes);
+      if (typeof res?.data?.up_count === "number") setLikes(res.data.up_count);
+      if (typeof res?.data?.down_count === "number") setDislikes(res.data.down_count);
     } catch (err) {
       setVoted(null);
       localStorage.removeItem(voteKey(tweet.id, currentUser?.id));
@@ -97,15 +113,16 @@ export default function Tweet({ tweet, currentUser, onReply, onDelete }) {
 
   const handleDislike = async (e) => {
     e.stopPropagation();
-    if (!currentUser) return alert("سجّل الدخول أولاً");
+    if (!currentUser || !tweet?.id) return alert("سجّل الدخول أولاً");
     if (voted) return;
+
     setVoted("dislike");
     localStorage.setItem(voteKey(tweet.id, currentUser?.id), "dislike");
     setDislikes((d) => d + 1);
     try {
       const res = await api.post(`/tweets/${tweet.id}/dislike`);
-      setLikes(res.data?.up_count ?? likes);
-      setDislikes(res.data?.down_count ?? dislikes + 1);
+      if (typeof res?.data?.down_count === "number") setDislikes(res.data.down_count);
+      if (typeof res?.data?.up_count === "number") setLikes(res.data.up_count);
     } catch (err) {
       setVoted(null);
       localStorage.removeItem(voteKey(tweet.id, currentUser?.id));
@@ -128,20 +145,8 @@ export default function Tweet({ tweet, currentUser, onReply, onDelete }) {
     }
   };
 
-  const handleDelete = async (e) => {
-    e.stopPropagation();
-    setDropdownOpen(false);
-    if (!canDelete) return;
-    if (!window.confirm("هل أنت متأكد من حذف التغريدة؟ الإجراء غير قابل للتراجع.")) return;
-    try {
-      await api.delete(`/tweets/${tweet.id}`);
-      // دع الأب يقرر ماذا يفعل بعد الحذف (إزالة العنصر أو الرجوع)
-      onDelete?.(tweet.id);
-    } catch (err) {
-      console.error(err);
-      alert("تعذّر حذف التغريدة");
-    }
-  };
+  // ===== Render
+  if (invalid) return null;
 
   return (
     <>
@@ -149,64 +154,69 @@ export default function Tweet({ tweet, currentUser, onReply, onDelete }) {
         <ReportModal onClose={() => setShowReportModal(false)} onSubmit={handleReportSubmit} />
       )}
 
-      <div className="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-md relative text-gray-900 dark:text-gray-200">
+      <div
+        className="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-md relative text-gray-900 dark:text-gray-200 w-full"
+        onClick={() => navigate(`/tweet/${tweet.id}`)}
+      >
         <div className="flex justify-between items-start">
           <div className="flex items-start">
-            <Avatar name={authorUsername} />
-            <div className="ml-3">
+            <Avatar name={authorUsername} url={authorAvatar} />
+            <div className="ml-3 w-full">
+              {/* header */}
               <div className="flex items-baseline gap-2">
                 <h3 className="font-bold mr-[10px]">{authorUsername}</h3>
                 <span className="text-xs text-gray-500 dark:text-gray-400">
-                  {timeAgo(tweet.created_at)}
+                  {timeAgo(tweet?.created_at)}
                 </span>
               </div>
 
+              {/* reply badge */}
               {isReply && (
                 <div className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
                   ↪︎ ردًا على{" "}
-                  <Link to={`/tweet/${tweet.reply_to_tweet_id}`} className="underline">
+                  <Link
+                    to={`/tweet/${tweet.reply_to_tweet_id}`}
+                    className="underline"
+                    onClick={(e) => e.stopPropagation()}
+                  >
                     هذه التغريدة
                   </Link>
                 </div>
               )}
 
-              <p className="mt-1 whitespace-pre-wrap break-words">{tweet.text ?? ""}</p>
+              {/* body */}
+              <p className="mt-2 whitespace-pre-wrap break-words break-all">
+                {tweet?.text ?? ""}
+              </p>
             </div>
           </div>
 
           {currentUser && (
-            <div className="relative" ref={dropdownRef}>
+            <div className="relative" ref={dropdownRef} onClick={(e) => e.stopPropagation()}>
               <button
-                onClick={(e) => { e.stopPropagation(); setDropdownOpen((p) => !p); }}
+                onClick={() => setDropdownOpen((p) => !p)}
                 className="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700"
+                title="خيارات"
               >
                 <MoreHorizontal size={20} />
               </button>
 
               {dropdownOpen && (
-                <div className="absolute right-0 mt-1 w-48 bg-white dark:bg-gray-700 shadow-xl rounded-lg z-20 overflow-hidden">
+                <div className="absolute -right-[164px] mt-1 w-48 bg-white dark:bg-gray-700 shadow-xl rounded-lg z-20">
                   <button
-                    onClick={(e) => { e.stopPropagation(); setShowReportModal(true); }}
-                    className="w-full px-4 py-2 text-red-600 hover:bg-gray-100 dark:hover:bg-gray-600 flex items-center gap-2"
+                    onClick={() => setShowReportModal(true)}
+                    className="w-full px-4 py-2 text-red-600 hover:bg-gray-200 dark:hover:bg-gray-600 flex items-center gap-2 hover:rounded-lg"
                   >
                     <Flag size={16} /> إبلاغ عن التغريدة
                   </button>
-
-                  {canDelete && (
-                    <button
-                      onClick={handleDelete}
-                      className="w-full px-4 py-2 text-gray-800 dark:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-600 flex items-center gap-2"
-                    >
-                      <Trash2 size={16} /> حذف التغريدة
-                    </button>
-                  )}
                 </div>
               )}
             </div>
           )}
         </div>
 
-        <div className="flex items-center gap-6 mt-4 text-gray-500 dark:text-gray-400 ml-12">
+        {/* actions */}
+        <div className="flex items-center gap-6 mt-4 text-gray-500 dark:text-gray-400 ml-12" onClick={(e) => e.stopPropagation()}>
           <button
             onClick={handleLike}
             disabled={!!voted}
@@ -226,11 +236,14 @@ export default function Tweet({ tweet, currentUser, onReply, onDelete }) {
           </button>
 
           <button
-            onClick={(e) => { e.stopPropagation(); if (onReply) onReply(); }}
+            onClick={() => {
+              onReply && onReply();        // افتح مودال الرد من الأب
+              setReplyDelta((d) => d + 1); // تفاؤلي فقط
+            }}
             className="flex items-center gap-1 hover:text-blue-500"
             title="الردود"
           >
-            <MessageSquare size={16} /> {replyCount}
+            <MessageSquare size={16} /> {Math.max(0, baseReplyCount + replyDelta)}
           </button>
         </div>
       </div>
