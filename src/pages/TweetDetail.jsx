@@ -1,5 +1,6 @@
+// pages/TweetDetail.jsx
 import { useState, useEffect } from "react";
-import { useParams, useLocation } from "react-router-dom";
+import { useParams, useLocation, useNavigate } from "react-router-dom";
 import Tweet from "../components/Tweet";
 import Modal from "../components/Modal";
 import api from "../api/api";
@@ -8,6 +9,7 @@ const normalize = (res) => (Array.isArray(res.data) ? res.data : (res.data?.data
 
 export default function TweetDetail({ user }) {
   const { id } = useParams();
+  const navigate = useNavigate();
   const location = useLocation();
   const initialOpen = location.state?.openReply === true;
 
@@ -36,22 +38,15 @@ export default function TweetDetail({ user }) {
   }, [initialOpen]);
 
   const handleAddReply = async (replyText) => {
-const text = typeof replyText === "string" ? replyText.trim() : replyText?.text?.trim();
-if (!text) return;
-
+    const text = typeof replyText === "string" ? replyText.trim() : replyText?.text?.trim();
+    if (!text) return;
     try {
-
       const res = await api.post(`/tweets/${tweet.id}/reply`, { text });
-
-
       let created = normalize(res);
-
-      // ensure the reply includes its user for immediate render
       if (!created.user) {
         const full = await api.get(`/tweets/${created.id}`);
         created = normalize(full);
       }
-
       setTweet((prev) => ({
         ...prev,
         replies_count: (prev?.replies_count ?? prev?.replies?.length ?? 0) + 1,
@@ -62,6 +57,13 @@ if (!text) return;
       console.error(err);
       alert("فشل إرسال الرد. الرجاء المحاولة مرة أخرى.");
     }
+  };
+
+  // ماذا نفعل بعد حذف التغريدة في صفحة التفاصيل؟
+  const handleDeletedHere = () => {
+    alert("تم حذف التغريدة");
+    // ارجع للصفحة السابقة إن وُجدت، وإلا للصفحة الرئيسية
+    navigate(-1); // يمكنك استبدالها بـ navigate("/") حسب رغبتك
   };
 
   if (loading) return <div className="text-center py-10">جاري تحميل التغريدة...</div>;
@@ -81,17 +83,10 @@ if (!text) return;
         />
       )}
 
-      <Tweet tweet={tweet} currentUser={user} />
+      <Tweet tweet={tweet} currentUser={user} onDelete={handleDeletedHere} />
 
       {user && (
-        <div className="px-4 py-2">
-          {/* <button
-            onClick={() => setShowReplyModal(true)}
-            className="w-full bg-blue-500 text-white py-2 rounded-full font-semibold hover:bg-blue-600 transition-colors flex items-center justify-center gap-2"
-          >
-            إضافة رد
-          </button> */}
-        </div>
+        <div className="px-4 py-2">{/* زر إضافة رد (اختياري) */}</div>
       )}
 
       {tweet.replies?.length > 0 && (
