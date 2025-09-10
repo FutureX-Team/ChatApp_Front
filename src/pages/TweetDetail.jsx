@@ -11,15 +11,14 @@ export default function TweetDetail({ user }) {
   const [tweet, setTweet] = useState(null);
   const [loading, setLoading] = useState(true);
   const [showReplyModal, setShowReplyModal] = useState(false);
-  const [replyingTo, setReplyingTo] = useState(null); // التغريدة أو الرد اللي نريد الرد عليه
+  const [replyingTo, setReplyingTo] = useState(null);
 
   useEffect(() => {
     const ac = new AbortController();
     (async () => {
       try {
         const res = await api.get(`/tweets/${id}`, { signal: ac.signal });
-        const data = normalize(res);
-        setTweet(data);
+        setTweet(normalize(res));
       } catch (err) {
         if (err.name !== "CanceledError") console.error(err);
       } finally {
@@ -30,25 +29,18 @@ export default function TweetDetail({ user }) {
   }, [id]);
 
   const handleAddReply = async (replyData) => {
-    // استخرج النص سواء جاء ككائن أو string
-    const text =
-      typeof replyData === "string"
-        ? replyData
-        : replyData?.text?.toString() ?? "";
-
+    const text = typeof replyData === "string" ? replyData : replyData?.text?.toString() ?? "";
     if (!text.trim() || !replyingTo) return;
 
     try {
       const res = await api.post(`/tweets/${replyingTo.id}/reply`, { text });
       let newReply = normalize(res);
 
-      // تأكد من وجود بيانات المستخدم للعرض الفوري
       if (!newReply.user && newReply?.id) {
         const full = await api.get(`/tweets/${newReply.id}`);
         newReply = normalize(full);
       }
 
-      // تحديث شجرة الردود بشكل متداخل
       const addReplyToTree = (t) => {
         if (t.id === replyingTo.id) {
           return {
@@ -72,10 +64,25 @@ export default function TweetDetail({ user }) {
     }
   };
 
+  const handleDelete = (tweetId) => {
+    const removeTweetFromTree = (t) => {
+      if (t.id === tweetId) return null;
+      return {
+        ...t,
+        replies: (t.replies ?? []).map(removeTweetFromTree).filter(Boolean),
+      };
+    };
+
+    setTweet((prev) => removeTweetFromTree(prev));
+
+    api.delete(`/tweets/${tweetId}`).catch((err) => {
+      console.error(err);
+      alert("تعذّر حذف التغريدة من السيرفر");
+    });
+  };
+
   if (loading) return <div className="text-center py-10">جاري تحميل التغريدة...</div>;
   if (!tweet) return <div className="text-center py-10">التغريدة غير موجودة</div>;
-
-  const authorTitle = tweet.user?.name ?? tweet.user?.username ?? "تغريدة";
 
   return (
     <div className="max-w-2xl mx-auto space-y-4">
@@ -92,10 +99,11 @@ export default function TweetDetail({ user }) {
       <Tweet
         tweet={tweet}
         currentUser={user}
-        onReply={(t) => {
-          setReplyingTo(tweet); // الرد على التغريدة الأصلية
+        onReply={() => {
+          setReplyingTo(tweet);
           setShowReplyModal(true);
         }}
+        onDelete={handleDelete}
       />
 
       {tweet.replies?.length > 0 && (
@@ -106,10 +114,11 @@ export default function TweetDetail({ user }) {
               key={reply.id}
               tweet={reply}
               currentUser={user}
-              onReply={(t) => {
-                setReplyingTo(reply); // الرد على هذا الرد
+              onReply={() => {
+                setReplyingTo(reply);
                 setShowReplyModal(true);
               }}
+              onDelete={handleDelete}
             />
           ))}
         </div>

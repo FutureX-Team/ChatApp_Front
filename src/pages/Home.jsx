@@ -138,19 +138,32 @@ export default function Home({ user, tweets, setTweets }) {
       )}
 
       {!loading && (
-        <div className="space-y-4">
-          {(tweets || []).map((tweet) => (
-            <Tweet
-              key={tweet.id}
-              tweet={tweet}
-              currentUser={user}
-              onReply={() =>
-                navigate(`/tweet/${tweet.id}`, { state: { openReply: true } })
-              }
-            />
-          ))}
-        </div>
-      )}
+  <div className="space-y-4">
+    {(tweets || []).map((tweet) => (
+      <Tweet
+        key={tweet.id}
+        tweet={tweet}
+        currentUser={user}
+        onReply={() =>
+          navigate(`/tweet/${tweet.id}`, { state: { openReply: true } })
+        }
+        onDelete={async (tweetId) => {
+          // إزالة التغريدة محليًا فورًا
+          setTweets((prev) => prev.filter((t) => t.id !== tweetId));
+
+          // إرسال طلب الحذف للسيرفر
+          try {
+            await api.delete(`/tweets/${tweetId}`);
+          } catch (err) {
+            console.error(err);
+            alert("تعذّر حذف التغريدة من السيرفر");
+          }
+        }}
+      />
+    ))}
+  </div>
+)}
+
     </div>
   );
 }
