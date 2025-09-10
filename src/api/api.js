@@ -8,7 +8,7 @@ const api = axios.create({
   baseURL: process.env.REACT_APP_API_BASE_URL,
   headers: { "Content-Type": "application/json", Accept: "application/json" },
   withCredentials: false, // Bearer only
-   baseURL: "http://localhost:5173/api"
+  
 });
 
 export const setAuthToken = (token) => {
