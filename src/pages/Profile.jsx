@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 import Tweet from "../components/Tweet";
 import Avatar from "../components/Avatar";
 import api, { rehydrateAuth } from "../api/api";
+import toast from "react-hot-toast";
+import { showErrorToast } from "../utils/toast";
 
 export default function Profile({ user: propUser }) {
   const [user, setUser] = useState(propUser);
@@ -27,12 +29,16 @@ export default function Profile({ user: propUser }) {
 
     (async () => {
       try {
+        setLoading(true);
         const res = await api.get(`/users/${user.id}/tweets`, {
           signal: ac.signal,
         });
         setUserTweets(Array.isArray(res.data) ? res.data : []);
       } catch (e) {
-        if (e.name !== "CanceledError") console.error(e);
+        if (e.name !== "CanceledError") {
+          console.error(e);
+          toast.error("تعذّر تحميل تغريدات المستخدم");
+        }
       } finally {
         if (!ac.signal.aborted) setLoading(false);
       }
@@ -43,9 +49,23 @@ export default function Profile({ user: propUser }) {
 
   if (!user) {
     return (
-      <p className="p-4 text-center">الرجاء تسجيل الدخول لعرض الملف الشخصي.</p>
+      <p className="p-4 text-center text-red-600">
+        الرجاء تسجيل الدخول لعرض الملف الشخصي.
+      </p>
     );
   }
+
+  const handleDeleteTweet = async (tweetId) => {
+    if (!window.confirm("هل أنت متأكد من حذف هذه التغريدة؟")) return;
+    try {
+      await api.delete(`/tweets/${tweetId}`);
+      setUserTweets((prev) => prev.filter((tw) => tw.id !== tweetId));
+      toast.success("تم حذف التغريدة بنجاح ✅");
+    } catch (err) {
+      console.error(err);
+      toast.error("فشل حذف التغريدة ❌");
+    }
+  };
 
   return (
     <div className="max-w-2xl mx-auto">
@@ -59,7 +79,9 @@ export default function Profile({ user: propUser }) {
         <p className="text-gray-500 dark:text-gray-400">{user.email}</p>
       </div>
 
-      <h3 className="text-xl font-bold mb-4">تغريداتي ({userTweets.length})</h3>
+      <h3 className="text-xl font-bold mb-4">
+        تغريداتي ({userTweets.length})
+      </h3>
 
       {loading ? (
         <p className="text-center text-gray-500">جاري التحميل…</p>
@@ -71,20 +93,7 @@ export default function Profile({ user: propUser }) {
                 key={t.id}
                 tweet={t}
                 currentUser={user}
-                onDelete={async () => {
-                  if (!window.confirm("هل أنت متأكد من حذف هذه التغريدة؟"))
-                    return;
-                  try {
-                    await api.delete(`/tweets/${t.id}`);
-                    setUserTweets((prev) =>
-                      prev.filter((tw) => tw.id !== t.id)
-                    );
-                    alert("تم حذف التغريدة بنجاح");
-                  } catch (err) {
-                    console.error(err);
-                    alert("فشل حذف التغريدة");
-                  }
-                }}
+                onDelete={() => handleDeleteTweet(t.id)}
               />
             ))
           ) : (

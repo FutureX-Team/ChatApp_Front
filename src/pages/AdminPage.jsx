@@ -1,9 +1,13 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Shield, BarChart2, Trash2, Headphones } from "lucide-react";
+import { toast } from "react-hot-toast";
 import api from "../api/api";
+import translateServerMessage from "../utils/translateServerMessage";
+import { showErrorToast } from "../utils/toast";
 
-const normalize = (res) => Array.isArray(res.data) ? res.data : (res.data?.data ?? res.data);
+const normalize = (res) =>
+  Array.isArray(res.data) ? res.data : (res.data?.data ?? res.data);
 
 const STATUS_LABEL = {
   pending: "جديد",
@@ -30,11 +34,15 @@ const ReportsTab = ({ deleteTweet }) => {
         id: r.id ?? r.report_id ?? r.rid,
         tweet_id: r.tweet_id ?? r.tid ?? r.tweet?.id,
         reason: r.reason ?? r.text ?? "",
-        status: ["pending", "reviewed", "resolved"].includes(r.status) ? r.status : "pending",
+        status: ["pending", "reviewed", "resolved"].includes(r.status)
+          ? r.status
+          : "pending",
       }));
       setReports(list);
     } catch (e) {
-      if (e.name !== "CanceledError") alert("تعذّر تحميل البلاغات");
+      if (e.name !== "CanceledError") {
+        toast.error("تعذّر تحميل البلاغات");
+      }
     } finally {
       if (!signal?.aborted) setLoading(false);
     }
@@ -47,25 +55,31 @@ const ReportsTab = ({ deleteTweet }) => {
   }, []);
 
   const handleStatusChange = async (reportId, newStatus) => {
-    const prev = reports.find(r => r.id === reportId)?.status;
-    setReports(ps => ps.map(r => r.id === reportId ? { ...r, status: newStatus } : r));
+    const prev = reports.find((r) => r.id === reportId)?.status;
+    setReports((ps) =>
+      ps.map((r) => (r.id === reportId ? { ...r, status: newStatus } : r))
+    );
     try {
       await api.put(`/admin/reports/${reportId}`, { status: newStatus });
-    } catch {
-      alert("تعذّر تحديث الحالة");
-      setReports(ps => ps.map(r => r.id === reportId ? { ...r, status: prev } : r));
+      toast.success("تم تحديث حالة البلاغ بنجاح ✅");
+    } catch (err) {
+      toast.error(translateServerMessage(err.response?.data?.message) || "تعذّر تحديث الحالة");
+      setReports((ps) =>
+        ps.map((r) => (r.id === reportId ? { ...r, status: prev } : r))
+      );
     }
   };
 
   const handleDeleteTweet = async (report) => {
-    if (!window.confirm(`هل أنت متأكد من حذف التغريدة رقم ${report.tweet_id}?`)) return;
+    if (!window.confirm(`هل أنت متأكد من حذف التغريدة رقم ${report.tweet_id}?`))
+      return;
     try {
       await api.delete(`/admin/tweets/${report.tweet_id}`);
       deleteTweet?.(report.tweet_id);
       await handleStatusChange(report.id, "resolved");
-      alert("تم حذف التغريدة ومعالجة البلاغ");
-    } catch {
-      alert("تعذّر حذف التغريدة");
+      toast.success("تم حذف التغريدة ومعالجة البلاغ ✅");
+    } catch (err) {
+      toast.error(translateServerMessage(err.response?.data?.message) || "تعذّر حذف التغريدة");
     }
   };
 
@@ -74,11 +88,25 @@ const ReportsTab = ({ deleteTweet }) => {
   return (
     <div className="space-y-4">
       {reports.length === 0 && <div className="p-4">لا توجد بلاغات حالياً</div>}
-      {reports.map(report => (
-        <div key={`${report.id}-${report.tweet_id}`} className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-md flex flex-col sm:flex-row sm:items-center gap-4">
-          <div className="flex-grow cursor-pointer" onClick={() => navigate(`/tweet/${report.tweet_id}`, { state: { from: "reports" } })}>
-            <p className="font-bold text-lg">بلاغ على التغريدة #{report.tweet_id}</p>
-            <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">السبب: {report.reason}</p>
+      {reports.map((report) => (
+        <div
+          key={`${report.id}-${report.tweet_id}`}
+          className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-md flex flex-col sm:flex-row sm:items-center gap-4"
+        >
+          <div
+            className="flex-grow cursor-pointer"
+            onClick={() =>
+              navigate(`/tweet/${report.tweet_id}`, {
+                state: { from: "reports" },
+              })
+            }
+          >
+            <p className="font-bold text-lg">
+              بلاغ على التغريدة #{report.tweet_id}
+            </p>
+            <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+              السبب: {report.reason}
+            </p>
           </div>
           <div className="flex items-center gap-3">
             <select
@@ -92,7 +120,10 @@ const ReportsTab = ({ deleteTweet }) => {
               <option value="resolved">{STATUS_LABEL.resolved}</option>
             </select>
             <button
-              onClick={(e) => { e.stopPropagation(); handleDeleteTweet(report); }}
+              onClick={(e) => {
+                e.stopPropagation();
+                handleDeleteTweet(report);
+              }}
               className="p-2 text-red-500 hover:bg-red-100 dark:hover:bg-gray-700 rounded-full"
             >
               <Trash2 size={18} />
@@ -112,10 +143,14 @@ const SupportRequestsTab = () => {
     const ac = new AbortController();
     (async () => {
       try {
-        const res = await api.get("/admin/support-requests", { signal: ac.signal });
+        const res = await api.get("/admin/support", {
+          signal: ac.signal,
+        });
         setRequests(normalize(res));
       } catch (e) {
-        if (e.name !== "CanceledError") console.error(e);
+        if (e.name !== "CanceledError") {
+          toast.error("تعذّر تحميل طلبات الدعم");
+        }
       } finally {
         if (!ac.signal.aborted) setLoading(false);
       }
@@ -128,12 +163,17 @@ const SupportRequestsTab = () => {
   return (
     <div className="space-y-4">
       {requests.length === 0 && <div className="p-4">لا توجد طلبات دعم حالياً</div>}
-      {requests.map(req => (
-        <div key={req.id} className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-md">
+      {requests.map((req) => (
+        <div
+          key={req.id}
+          className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-md"
+        >
           <p className="font-bold text-sm mb-1">الاسم: {req.username}</p>
           {req.email && <p className="text-sm mb-1">البريد: {req.email}</p>}
           <p className="text-sm mb-1">الرسالة: {req.message}</p>
-          <p className="text-xs text-gray-500 dark:text-gray-400">تاريخ الإرسال: {new Date(req.created_at).toLocaleString()}</p>
+          <p className="text-xs text-gray-500 dark:text-gray-400">
+            تاريخ الإرسال: {new Date(req.created_at).toLocaleString()}
+          </p>
         </div>
       ))}
     </div>
@@ -151,7 +191,11 @@ const StatCard = ({ title, value, color = "blue" }) => {
   return (
     <div className="bg-white dark:bg-gray-800 p-5 rounded-xl shadow">
       <p className="text-sm text-gray-500 dark:text-gray-400">{title}</p>
-      <p className={`text-3xl font-bold mt-1 ${colorMap[color]}`}>{Number(value ?? 0).toLocaleString()}</p>
+      <p
+        className={`text-3xl font-bold mt-1 ${colorMap[color]}`}
+      >
+        {Number(value ?? 0).toLocaleString()}
+      </p>
     </div>
   );
 };
@@ -170,6 +214,7 @@ const StatisticsTab = () => {
       } catch (e) {
         if (e.name !== "CanceledError") {
           setErr("تعذّر تحميل الإحصائيات");
+          toast.error("تعذّر تحميل الإحصائيات");
         }
       } finally {
         if (!ac.signal.aborted) setLoading(false);
@@ -184,14 +229,34 @@ const StatisticsTab = () => {
 
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-      {"users_count" in stats && <StatCard title="إجمالي المستخدمين المسجلين" value={stats.users_count} />}
-      {"tweets_count" in stats && <StatCard title="إجمالي التغريدات" value={stats.tweets_count} />}
-      {"reports_count" in stats && <StatCard title="البلاغات" value={stats.reports_count} color="red" />}
-      {"registered_tweets" in stats && <StatCard title="تغريدات المسجلين" value={stats.registered_tweets} />}
-      {"guest_tweets" in stats && <StatCard title="تغريدات الزوار" value={stats.guest_tweets} />}
-      {"last_week_users" in stats && <StatCard title="المستخدمون الجدد آخر أسبوع" value={stats.last_week_users} />}
-      {"last_week_tweets" in stats && <StatCard title="تغريدات آخر أسبوع" value={stats.last_week_tweets} />}
-      {"online_users" in stats && <StatCard title="المستخدمون المتواجدون الآن" value={stats.online_users} color="green" />}
+      {"users_count" in stats && (
+        <StatCard title="إجمالي المستخدمين المسجلين" value={stats.users_count} />
+      )}
+      {"tweets_count" in stats && (
+        <StatCard title="إجمالي التغريدات" value={stats.tweets_count} />
+      )}
+      {"reports_count" in stats && (
+        <StatCard title="البلاغات" value={stats.reports_count} color="red" />
+      )}
+      {"registered_tweets" in stats && (
+        <StatCard title="تغريدات المسجلين" value={stats.registered_tweets} />
+      )}
+      {"guest_tweets" in stats && (
+        <StatCard title="تغريدات الزوار" value={stats.guest_tweets} />
+      )}
+      {"last_week_users" in stats && (
+        <StatCard title="المستخدمون الجدد آخر أسبوع" value={stats.last_week_users} />
+      )}
+      {"last_week_tweets" in stats && (
+        <StatCard title="تغريدات آخر أسبوع" value={stats.last_week_tweets} />
+      )}
+      {"online_users" in stats && (
+        <StatCard
+          title="المستخدمون المتواجدون الآن"
+          value={stats.online_users}
+          color="green"
+        />
+      )}
     </div>
   );
 };
@@ -213,21 +278,33 @@ export default function AdminPage({ user, isAdmin, deleteTweet }) {
       <div className="flex border-b border-gray-200 dark:border-gray-700 mb-6 gap-2">
         <button
           onClick={() => setActiveTab("reports")}
-          className={`flex items-center gap-2 px-4 py-3 font-semibold ${activeTab === "reports" ? "border-b-2 border-blue-500 text-blue-500" : "text-gray-500 hover:text-blue-500"}`}
+          className={`flex items-center gap-2 px-4 py-3 font-semibold ${
+            activeTab === "reports"
+              ? "border-b-2 border-blue-500 text-blue-500"
+              : "text-gray-500 hover:text-blue-500"
+          }`}
         >
           <Shield size={18} />
           البلاغات
         </button>
         <button
           onClick={() => setActiveTab("stats")}
-          className={`flex items-center gap-2 px-4 py-3 font-semibold ${activeTab === "stats" ? "border-b-2 border-blue-500 text-blue-500" : "text-gray-500 hover:text-blue-500"}`}
+          className={`flex items-center gap-2 px-4 py-3 font-semibold ${
+            activeTab === "stats"
+              ? "border-b-2 border-blue-500 text-blue-500"
+              : "text-gray-500 hover:text-blue-500"
+          }`}
         >
           <BarChart2 size={18} />
           الإحصائيات
         </button>
         <button
           onClick={() => setActiveTab("support")}
-          className={`flex items-center gap-2 px-4 py-3 font-semibold ${activeTab === "support" ? "border-b-2 border-blue-500 text-blue-500" : "text-gray-500 hover:text-blue-500"}`}
+          className={`flex items-center gap-2 px-4 py-3 font-semibold ${
+            activeTab === "support"
+              ? "border-b-2 border-blue-500 text-blue-500"
+              : "text-gray-500 hover:text-blue-500"
+          }`}
         >
           <Headphones size={18} />
           الدعم الفني
