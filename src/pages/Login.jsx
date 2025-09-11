@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
 import api, { setAuthToken, setUserCache } from "../api/api";
+import { showErrorToast } from "../utils/toast";
 
 export default function Login({ setUser, setIsAdmin }) {
   const [email, setEmail] = useState("");
