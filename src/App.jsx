@@ -12,6 +12,8 @@ import TweetDetail from "./pages/TweetDetail";
 import AuthCallback from "./pages/AuthCallback";
 import Support from "./pages/Support";
 import { Toaster } from "react-hot-toast";
+import Profileusr from "./pages/Profileusr"; // عدّل المسار حسب مكان الملف
+
 
 import api, { setAuthToken, rehydrateAuth, setUserCache } from "./api/api";
 
@@ -44,6 +46,7 @@ export default function App() {
   const [isAdmin, setIsAdmin] = useState(start.isAdmin);
   const [tweets, setTweets] = useState([]);
   const [authLoading, setAuthLoading] = useState(start.hasToken);
+  const [currentUser, setCurrentUser] = useState(null);
 
   useEffect(() => {
     const boot = async () => {
@@ -163,7 +166,11 @@ export default function App() {
                 </Protected>
               }
             />
+          <Route path="/profileusr/:username" element={<Profileusr currentUser={currentUser} />} />
+
+
             <Route
+            
               path="/tweet/:id"
               element={
                 <TweetDetail

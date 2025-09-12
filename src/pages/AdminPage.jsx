@@ -1,14 +1,12 @@
+// src/pages/AdminPage.jsx
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Shield, BarChart2, Trash2, Headphones } from "lucide-react";
-import { toast } from "react-hot-toast";
 import api from "../api/api";
-import translateServerMessage from "../utils/translateServerMessage";
-import { showErrorToast } from "../utils/toast";
 
-const normalize = (res) =>
-  Array.isArray(res.data) ? res.data : (res.data?.data ?? res.data);
+const normalize = (res) => (Array.isArray(res.data) ? res.data : (res.data?.data ?? res.data));
 
+/* -------------------- constants -------------------- */
 const STATUS_LABEL = {
   pending: "جديد",
   reviewed: "تحت المراجعة",
@@ -21,6 +19,7 @@ const STATUS_CLASS = {
   resolved: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200",
 };
 
+/* -------------------- ReportsTab -------------------- */
 const ReportsTab = ({ deleteTweet }) => {
   const navigate = useNavigate();
   const [reports, setReports] = useState([]);
@@ -34,14 +33,13 @@ const ReportsTab = ({ deleteTweet }) => {
         id: r.id ?? r.report_id ?? r.rid,
         tweet_id: r.tweet_id ?? r.tid ?? r.tweet?.id,
         reason: r.reason ?? r.text ?? "",
-        status: ["pending", "reviewed", "resolved"].includes(r.status)
-          ? r.status
-          : "pending",
+        status: ["pending", "reviewed", "resolved"].includes(r.status) ? r.status : "pending",
       }));
       setReports(list);
     } catch (e) {
       if (e.name !== "CanceledError") {
-        toast.error("تعذّر تحميل البلاغات");
+        console.error(e);
+        alert("تعذّر تحميل البلاغات");
       }
     } finally {
       if (!signal?.aborted) setLoading(false);
@@ -56,30 +54,28 @@ const ReportsTab = ({ deleteTweet }) => {
 
   const handleStatusChange = async (reportId, newStatus) => {
     const prev = reports.find((r) => r.id === reportId)?.status;
-    setReports((ps) =>
-      ps.map((r) => (r.id === reportId ? { ...r, status: newStatus } : r))
-    );
+    setReports((ps) => ps.map((r) => (r.id === reportId ? { ...r, status: newStatus } : r)));
     try {
       await api.put(`/admin/reports/${reportId}`, { status: newStatus });
-      toast.success("تم تحديث حالة البلاغ بنجاح ✅");
-    } catch (err) {
-      toast.error(translateServerMessage(err.response?.data?.message) || "تعذّر تحديث الحالة");
-      setReports((ps) =>
-        ps.map((r) => (r.id === reportId ? { ...r, status: prev } : r))
-      );
+    } catch (e) {
+      alert("تعذّر تحديث الحالة");
+      setReports((ps) => ps.map((r) => (r.id === reportId ? { ...r, status: prev } : r)));
     }
   };
 
   const handleDeleteTweet = async (report) => {
-    if (!window.confirm(`هل أنت متأكد من حذف التغريدة رقم ${report.tweet_id}?`))
-      return;
+    if (!window.confirm(`هل أنت متأكد من حذف التغريدة رقم ${report.tweet_id}؟`)) return;
     try {
       await api.delete(`/admin/tweets/${report.tweet_id}`);
-      deleteTweet?.(report.tweet_id);
-      await handleStatusChange(report.id, "resolved");
-      toast.success("تم حذف التغريدة ومعالجة البلاغ ✅");
-    } catch (err) {
-      toast.error(translateServerMessage(err.response?.data?.message) || "تعذّر حذف التغريدة");
+      if (typeof deleteTweet === "function") deleteTweet(report.tweet_id);
+
+      // حذف البلاغ مباشرة من الواجهة بعد نجاح الحذف
+      setReports((ps) => ps.filter((r) => r.id !== report.id));
+
+      alert("تم حذف التغريدة ومعالجة البلاغ");
+    } catch (e) {
+      alert("تعذّر حذف التغريدة");
+      console.error(e);
     }
   };
 
@@ -87,7 +83,6 @@ const ReportsTab = ({ deleteTweet }) => {
 
   return (
     <div className="space-y-4">
-      {reports.length === 0 && <div className="p-4">لا توجد بلاغات حالياً</div>}
       {reports.map((report) => (
         <div
           key={`${report.id}-${report.tweet_id}`}
@@ -95,36 +90,31 @@ const ReportsTab = ({ deleteTweet }) => {
         >
           <div
             className="flex-grow cursor-pointer"
-            onClick={() =>
-              navigate(`/tweet/${report.tweet_id}`, {
-                state: { from: "reports" },
-              })
-            }
+            onClick={() => navigate(`/tweet/${report.tweet_id}`, { state: { from: "reports" } })}
           >
-            <p className="font-bold text-lg">
-              بلاغ على التغريدة #{report.tweet_id}
-            </p>
-            <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-              السبب: {report.reason}
-            </p>
+            <p className="font-bold text-lg">بلاغ على التغريدة #{report.tweet_id}</p>
+            <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">السبب: {report.reason}</p>
           </div>
+
           <div className="flex items-center gap-3">
             <select
               value={report.status}
               onChange={(e) => handleStatusChange(report.id, e.target.value)}
-              className={`text-xs font-bold rounded-full border-none focus:ring-2 focus:ring-blue-500 p-1 ${STATUS_CLASS[report.status]}`}
+              className={`text-xs font-bold rounded-full border-none focus:ring-2 focus:ring-blue-500 p-1 ${STATUS_CLASS[report.status] ?? ""}`}
               onClick={(e) => e.stopPropagation()}
             >
               <option value="pending">{STATUS_LABEL.pending}</option>
               <option value="reviewed">{STATUS_LABEL.reviewed}</option>
               <option value="resolved">{STATUS_LABEL.resolved}</option>
             </select>
+
             <button
               onClick={(e) => {
                 e.stopPropagation();
                 handleDeleteTweet(report);
               }}
               className="p-2 text-red-500 hover:bg-red-100 dark:hover:bg-gray-700 rounded-full"
+              title={`حذف التغريدة رقم ${report.tweet_id}`}
             >
               <Trash2 size={18} />
             </button>
@@ -135,26 +125,33 @@ const ReportsTab = ({ deleteTweet }) => {
   );
 };
 
+/* -------------------- SupportRequestsTab -------------------- */
 const SupportRequestsTab = () => {
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
 
+  const fetchRequests = async (signal) => {
+    try {
+      setLoading(true);
+      const res = await api.get("/admin/support", { signal });
+      const list = normalize(res).map((r) => ({
+        id: r.id ?? r.ticket_id ?? r._id,
+        username: r.username ?? r.name ?? "غير معروف",
+        email: r.email ?? null,
+        message: r.message ?? r.text ?? "",
+        created_at: r.created_at ?? r.time ?? r.createdAt ?? null,
+      }));
+      setRequests(list);
+    } catch (e) {
+      if (e.name !== "CanceledError") console.error(e);
+    } finally {
+      if (!signal?.aborted) setLoading(false);
+    }
+  };
+
   useEffect(() => {
     const ac = new AbortController();
-    (async () => {
-      try {
-        const res = await api.get("/admin/support", {
-          signal: ac.signal,
-        });
-        setRequests(normalize(res));
-      } catch (e) {
-        if (e.name !== "CanceledError") {
-          toast.error("تعذّر تحميل طلبات الدعم");
-        }
-      } finally {
-        if (!ac.signal.aborted) setLoading(false);
-      }
-    })();
+    fetchRequests(ac.signal);
     return () => ac.abort();
   }, []);
 
@@ -164,15 +161,12 @@ const SupportRequestsTab = () => {
     <div className="space-y-4">
       {requests.length === 0 && <div className="p-4">لا توجد طلبات دعم حالياً</div>}
       {requests.map((req) => (
-        <div
-          key={req.id}
-          className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-md"
-        >
+        <div key={req.id} className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-md">
           <p className="font-bold text-sm mb-1">الاسم: {req.username}</p>
           {req.email && <p className="text-sm mb-1">البريد: {req.email}</p>}
           <p className="text-sm mb-1">الرسالة: {req.message}</p>
           <p className="text-xs text-gray-500 dark:text-gray-400">
-            تاريخ الإرسال: {new Date(req.created_at).toLocaleString()}
+            تاريخ الإرسال: {req.created_at ? new Date(req.created_at).toLocaleString() : "—"}
           </p>
         </div>
       ))}
@@ -180,6 +174,7 @@ const SupportRequestsTab = () => {
   );
 };
 
+/* -------------------- StatisticsTab -------------------- */
 const StatCard = ({ title, value, color = "blue" }) => {
   const colorMap = {
     blue: "text-blue-600 dark:text-blue-400",
@@ -191,9 +186,7 @@ const StatCard = ({ title, value, color = "blue" }) => {
   return (
     <div className="bg-white dark:bg-gray-800 p-5 rounded-xl shadow">
       <p className="text-sm text-gray-500 dark:text-gray-400">{title}</p>
-      <p
-        className={`text-3xl font-bold mt-1 ${colorMap[color]}`}
-      >
+      <p className={`text-3xl font-bold mt-1 ${colorMap[color] ?? colorMap.blue}`}>
         {Number(value ?? 0).toLocaleString()}
       </p>
     </div>
@@ -209,12 +202,13 @@ const StatisticsTab = () => {
     const ac = new AbortController();
     (async () => {
       try {
+        setLoading(true);
         const res = await api.get("/admin/dashboard", { signal: ac.signal });
         setStats(normalize(res));
       } catch (e) {
         if (e.name !== "CanceledError") {
           setErr("تعذّر تحميل الإحصائيات");
-          toast.error("تعذّر تحميل الإحصائيات");
+          console.error(e);
         }
       } finally {
         if (!ac.signal.aborted) setLoading(false);
@@ -229,38 +223,19 @@ const StatisticsTab = () => {
 
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-      {"users_count" in stats && (
-        <StatCard title="إجمالي المستخدمين المسجلين" value={stats.users_count} />
-      )}
-      {"tweets_count" in stats && (
-        <StatCard title="إجمالي التغريدات" value={stats.tweets_count} />
-      )}
-      {"reports_count" in stats && (
-        <StatCard title="البلاغات" value={stats.reports_count} color="red" />
-      )}
-      {"registered_tweets" in stats && (
-        <StatCard title="تغريدات المسجلين" value={stats.registered_tweets} />
-      )}
-      {"guest_tweets" in stats && (
-        <StatCard title="تغريدات الزوار" value={stats.guest_tweets} />
-      )}
-      {"last_week_users" in stats && (
-        <StatCard title="المستخدمون الجدد آخر أسبوع" value={stats.last_week_users} />
-      )}
-      {"last_week_tweets" in stats && (
-        <StatCard title="تغريدات آخر أسبوع" value={stats.last_week_tweets} />
-      )}
-      {"online_users" in stats && (
-        <StatCard
-          title="المستخدمون المتواجدون الآن"
-          value={stats.online_users}
-          color="green"
-        />
-      )}
+      {"users_count" in stats && <StatCard title="إجمالي المستخدمين المسجلين" value={stats.users_count} />}
+      {"tweets_count" in stats && <StatCard title="إجمالي التغريدات" value={stats.tweets_count} />}
+      {"reports_count" in stats && <StatCard title="البلاغات" value={stats.reports_count} color="red" />}
+      {"registered_tweets" in stats && <StatCard title="تغريدات المسجلين" value={stats.registered_tweets} />}
+      {"guest_tweets" in stats && <StatCard title="تغريدات الزوار" value={stats.guest_tweets} />}
+      {"last_week_users" in stats && <StatCard title="المستخدمون الجدد آخر أسبوع" value={stats.last_week_users} />}
+      {"last_week_tweets" in stats && <StatCard title="تغريدات آخر أسبوع" value={stats.last_week_tweets} />}
+      {"online_users" in stats && <StatCard title="المستخدمون المتواجدون الآن" value={stats.online_users} color="green" />}
     </div>
   );
 };
 
+/* -------------------- AdminPage -------------------- */
 export default function AdminPage({ user, isAdmin, deleteTweet }) {
   const [activeTab, setActiveTab] = useState("reports");
   const navigate = useNavigate();
@@ -279,9 +254,7 @@ export default function AdminPage({ user, isAdmin, deleteTweet }) {
         <button
           onClick={() => setActiveTab("reports")}
           className={`flex items-center gap-2 px-4 py-3 font-semibold ${
-            activeTab === "reports"
-              ? "border-b-2 border-blue-500 text-blue-500"
-              : "text-gray-500 hover:text-blue-500"
+            activeTab === "reports" ? "border-b-2 border-blue-500 text-blue-500" : "text-gray-500 hover:text-blue-500"
           }`}
         >
           <Shield size={18} />
@@ -290,9 +263,7 @@ export default function AdminPage({ user, isAdmin, deleteTweet }) {
         <button
           onClick={() => setActiveTab("stats")}
           className={`flex items-center gap-2 px-4 py-3 font-semibold ${
-            activeTab === "stats"
-              ? "border-b-2 border-blue-500 text-blue-500"
-              : "text-gray-500 hover:text-blue-500"
+            activeTab === "stats" ? "border-b-2 border-blue-500 text-blue-500" : "text-gray-500 hover:text-blue-500"
           }`}
         >
           <BarChart2 size={18} />
@@ -301,9 +272,7 @@ export default function AdminPage({ user, isAdmin, deleteTweet }) {
         <button
           onClick={() => setActiveTab("support")}
           className={`flex items-center gap-2 px-4 py-3 font-semibold ${
-            activeTab === "support"
-              ? "border-b-2 border-blue-500 text-blue-500"
-              : "text-gray-500 hover:text-blue-500"
+            activeTab === "support" ? "border-b-2 border-blue-500 text-blue-500" : "text-gray-500 hover:text-blue-500"
           }`}
         >
           <Headphones size={18} />

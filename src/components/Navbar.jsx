@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Home, Sun, Moon, LogIn, Headphones } from "lucide-react"; // أضفنا أيقونة السماعة
 import Avatar from "./Avatar";
+import api from "../api/api";
 
 export default function Navbar({ user, isAdmin, darkMode, setDarkMode, onLogout }) {
   const [dropdownOpen, setDropdownOpen] = useState(false);
@@ -16,16 +17,27 @@ export default function Navbar({ user, isAdmin, darkMode, setDarkMode, onLogout 
     navigate('/login');
   };
 
-  const handleSupportSubmit = (e) => {
+  const handleSupportSubmit = async (e) => {
     e.preventDefault();
     if (!supportMessage) {
       alert("الرجاء كتابة رسالتك للدعم.");
       return;
     }
-    console.log("رسالة الدعم المرسلة:", supportMessage);
-    setSupportMessage("");
-    setSupportOpen(false);
-    alert("تم إرسال رسالتك بنجاح ✅");
+     try {
+      const payload = {
+        username: user?.username || "غير معروف",
+        email: user?.email || "no-email@example.com",
+        message: supportMessage,
+      };
+      const { data } = await api.post("/support", payload);
+      console.log("تم حفظ التذكرة:", data);
+      setSupportMessage("");
+      setSupportOpen(false);
+      alert("✅ تم إرسال رسالتك للدعم بنجاح");
+    } catch (err) {
+      console.error("خطأ أثناء الإرسال:", err?.response?.data || err.message);
+     alert("❌ تعذّر إرسال الرسالة، حاول لاحقًا");
+   }
   };
 
   useEffect(() => {

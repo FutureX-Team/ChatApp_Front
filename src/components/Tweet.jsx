@@ -110,6 +110,35 @@ export default function Tweet({ tweet, currentUser, onReply, onDelete }) {
 
   if (!tweet || !tweet.id) return null;
 
+  const timeAgo = (ts) => {
+  if (!ts) return "";
+  const d = new Date(ts);
+  if (isNaN(d)) return "";
+  const s = Math.max(1, Math.floor((Date.now() - d.getTime()) / 1000));
+  if (s < 60) return `${s} ث`;
+  const m = Math.floor(s / 60);
+  if (m < 60) return `${m} د`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `${h} س`;
+  const days = Math.floor(h / 24);
+  if (days < 7) return `${days} ي`;
+  return d.toLocaleString("ar-SA", { hour12: false });
+};
+const handleDelete = async (e) => {
+    e.stopPropagation();
+    setDropdownOpen(false);
+    if (!canDelete) return;
+
+    if (!window.confirm("هل أنت متأكد من حذف التغريدة؟ الإجراء غير قابل للتراجع.")) return;
+
+    try {
+      await api.delete(`/tweets/${tweet.id}`);
+      onDelete?.(tweet.id);
+    } catch (err) {
+      console.error(err);
+      alert("تعذّر حذف التغريدة");
+    }
+  };
   return (
     <>
       {showReportModal && <ReportModal onClose={() => setShowReportModal(false)} onSubmit={handleReportSubmit} />}
@@ -124,7 +153,10 @@ export default function Tweet({ tweet, currentUser, onReply, onDelete }) {
             <div className="ml-3 w-full">
               <div className="flex items-baseline gap-2">
                 <h3 className="font-bold mr-[10px]">{authorUsername}</h3>
-                <span className="text-xs text-gray-500 dark:text-gray-400">{tweet.created_at}</span>
+                <span className="text-xs text-gray-500 dark:text-gray-400">
+  {timeAgo(tweet?.created_at)}
+</span>
+
               </div>
               {isReply && (
                 <div className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
@@ -141,10 +173,24 @@ export default function Tweet({ tweet, currentUser, onReply, onDelete }) {
                 <MoreHorizontal size={20} />
               </button>
 
+              
               {dropdownOpen && (
                 <div className="absolute -right-[164px] mt-1 w-48 bg-white dark:bg-gray-700 shadow-xl rounded-lg z-20">
-                  {canDelete && <button onClick={() => { if(window.confirm("هل أنت متأكد؟")) onDelete?.(tweet.id); setDropdownOpen(false); }} className="w-full px-4 py-2 text-red-600 hover:bg-gray-200 dark:hover:bg-gray-600 flex items-center gap-2 rounded-lg"><Trash2 size={16} /> حذف التغريدة</button>}
-                  <button onClick={() => setShowReportModal(true)} className="w-full px-4 py-2 text-red-600 hover:bg-gray-200 dark:hover:bg-gray-600 flex items-center gap-2 rounded-lg"><Flag size={16} /> إبلاغ عن التغريدة</button>
+                    {canDelete && (
+                    <button
+                      onClick={handleDelete}
+                      className="w-full px-4 py-2 text-red-600 hover:bg-gray-200 dark:hover:bg-gray-600 dark:hover:bg-gray-600 flex items-center gap-2"
+                    >
+                      <Trash2 size={16} /> حذف التغريدة
+                    </button>
+                  )}
+
+                  <button
+                    onClick={() => setShowReportModal(true)}
+                    className="w-full px-4 py-2 text-red-600 hover:bg-gray-200 dark:hover:bg-gray-600 flex items-center gap-2 hover:rounded-lg"
+                  >
+                    <Flag size={16} /> إبلاغ عن التغريدة
+                  </button>
                 </div>
               )}
             </div>
