@@ -141,7 +141,7 @@ export default function Home({ user, tweets, setTweets }) {
         <div className="space-y-4">
           {(tweets || []).map((tweet) => (
             <Tweet
-              key={tweet.id}
+                key={tweet.id} 
               tweet={tweet}
               currentUser={user}
               onReply={() =>

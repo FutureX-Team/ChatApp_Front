@@ -68,7 +68,10 @@ const ReportsTab = ({ deleteTweet }) => {
     try {
       await api.delete(`/admin/tweets/${report.tweet_id}`);
       if (typeof deleteTweet === "function") deleteTweet(report.tweet_id);
-      await handleStatusChange(report.id, "resolved");
+
+      // حذف البلاغ مباشرة من الواجهة بعد نجاح الحذف
+      setReports((ps) => ps.filter((r) => r.id !== report.id));
+
       alert("تم حذف التغريدة ومعالجة البلاغ");
     } catch (e) {
       alert("تعذّر حذف التغريدة");
@@ -132,14 +135,13 @@ const SupportRequestsTab = () => {
       setLoading(true);
       const res = await api.get("/admin/support", { signal });
       const list = normalize(res).map((r) => ({
-       id: r.id ?? r.ticket_id ?? r._id,                  // أي مفتاح متاح
-       username: r.username ?? r.name ?? "غير معروف",
-       email: r.email ?? null,
-       message: r.message ?? r.text ?? "",
-       // السيرفر يرسلها باسم "time" → نحولها إلى created_at الذي تستخدمه الواجهة
-      created_at: r.created_at ?? r.time ?? r.createdAt ?? null,
-     }));
-     setRequests(list);
+        id: r.id ?? r.ticket_id ?? r._id,
+        username: r.username ?? r.name ?? "غير معروف",
+        email: r.email ?? null,
+        message: r.message ?? r.text ?? "",
+        created_at: r.created_at ?? r.time ?? r.createdAt ?? null,
+      }));
+      setRequests(list);
     } catch (e) {
       if (e.name !== "CanceledError") console.error(e);
     } finally {
@@ -182,9 +184,9 @@ const StatCard = ({ title, value, color = "blue" }) => {
     purple: "text-purple-600 dark:text-purple-400",
   };
   return (
-    <div className="bg-white dark:bg-gray-800 p-5 rounded-xl  shadow">
-      <p className="text-sm text-gray-500 dark:text-gray-400 ">{title}</p>
-      <p className={` text-3xl font-bold mt-1 ${colorMap[color] ?? colorMap.blue}`}>
+    <div className="bg-white dark:bg-gray-800 p-5 rounded-xl shadow">
+      <p className="text-sm text-gray-500 dark:text-gray-400">{title}</p>
+      <p className={`text-3xl font-bold mt-1 ${colorMap[color] ?? colorMap.blue}`}>
         {Number(value ?? 0).toLocaleString()}
       </p>
     </div>

@@ -8,7 +8,9 @@ const api = axios.create({
   baseURL: process.env.REACT_APP_API_BASE_URL,
   headers: { "Content-Type": "application/json", Accept: "application/json" },
   withCredentials: false, // Bearer only
+
 });
+
 
 export const setAuthToken = (token) => {
   if (token) {
@@ -52,7 +54,7 @@ api.interceptors.response.use(
   (err) => {
     if (err?.response?.status === 401) {
       setAuthToken(null);
-      localStorage.removeItem(USER_KEY);
+        setUserCache(null);
       if (window.location.pathname !== "/login") {
         window.location.href = "/login";
       }

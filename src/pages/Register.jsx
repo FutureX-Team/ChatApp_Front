@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
 import api, { setAuthToken } from "../api/api";
+import { showErrorToast } from "../utils/toast";
 
 export default function Register({ setUser }) {
   const [name, setName] = useState("");
@@ -10,33 +11,10 @@ export default function Register({ setUser }) {
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
-  // دالة لترجمة رسائل السيرفر للغة العربية
-  const translateServerMessage = (msg) => {
-    const map = {
-      "This email is already registered": "هذا البريد الإلكتروني مسجّل مسبقًا",
-      "Invalid credentials": "بيانات تسجيل الدخول غير صحيحة",
-      "User not found": "المستخدم غير موجود",
-      "Password must be at least 8 characters": "كلمة المرور يجب أن تكون 8 أحرف على الأقل",
-      "Username is required": "اسم المستخدم مطلوب",
-      "Email is required": "البريد الإلكتروني مطلوب",
-      // أضف أي رسائل أخرى من السيرفر هنا
-    };
-    return map[msg] || msg;
-  };
-
   const handleRegisterSubmit = async (e) => {
     e.preventDefault();
-
-    // التحقق من الحقول قبل الإرسال
-    if (!name || !email || !password) {
-      toast.error("جميع الحقول مطلوبة!");
-      return;
-    }
-
-    if (password.length < 8) {
-      toast.error("كلمة المرور يجب أن تكون 8 أحرف على الأقل.");
-      return;
-    }
+    if (!name || !email || !password) return toast.error("جميع الحقول مطلوبة!");
+    if (password.length < 8) return toast.error("كلمة المرور يجب أن تكون 8 أحرف على الأقل.");
 
     try {
       setLoading(true);
@@ -45,21 +23,10 @@ export default function Register({ setUser }) {
 
       setAuthToken(token);
       setUser(user);
-      toast.success("تم إنشاء الحساب بنجاح ✅");
+      toast.success("تم إنشاء الحساب وتسجيل الدخول بنجاح ✅");
       navigate("/");
     } catch (err) {
-      console.error(err);
-
-      if (err.response?.data?.message) {
-        toast.error(translateServerMessage(err.response.data.message));
-      } else if (err.response?.data?.errors) {
-        const errorMessages = Object.values(err.response.data.errors)
-          .map(msg => `⚠ ${translateServerMessage(msg)}`)
-          .join(" | ");
-        toast.error(`الحقول غير صحيحة: ${errorMessages}`);
-      } else {
-        toast.error("حدث خطأ غير متوقع. حاول مرة أخرى.");
-      }
+      showErrorToast(err);
     } finally {
       setLoading(false);
     }
@@ -71,7 +38,7 @@ export default function Register({ setUser }) {
   };
 
   return (
-    <div className="flex justify-center items-center pt-10 sm:pt-16">
+   <div className="flex justify-center items-center pt-10 sm:pt-16">
       <form
         className="bg-white dark:bg-gray-800 p-6 sm:p-8 rounded-xl shadow-lg w-full max-w-sm"
         onSubmit={handleRegisterSubmit}

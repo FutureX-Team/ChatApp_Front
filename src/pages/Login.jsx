@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
-import api, { setAuthToken } from "../api/api";
+import api, { setAuthToken, setUserCache } from "../api/api";
+import { showErrorToast } from "../utils/toast";
 
 export default function Login({ setUser, setIsAdmin }) {
   const [email, setEmail] = useState("");
@@ -9,7 +10,6 @@ export default function Login({ setUser, setIsAdmin }) {
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
-  // دالة لترجمة رسائل السيرفر
   const translateServerMessage = (msg) => {
     const map = {
       "This email is already registered": "هذا البريد الإلكتروني مسجّل مسبقًا",
@@ -26,33 +26,31 @@ export default function Login({ setUser, setIsAdmin }) {
   const handleLoginSubmit = async (e) => {
     e.preventDefault();
 
-    // التحقق من الحقول بشكل منفصل
-    if (!email) {
-      toast.error("البريد الإلكتروني مطلوب!");
-      return;
-    }
-    if (!password) {
-      toast.error("كلمة المرور مطلوبة!");
-      return;
-    }
+    if (!email) return toast.error("البريد الإلكتروني مطلوب!");
+    if (!password) return toast.error("كلمة المرور مطلوبة!");
 
     try {
       setLoading(true);
       const { data } = await api.post("/login", { email, password });
       const { user, token } = data;
 
+      // 🔑 حفظ التوكن واليوزر
       setAuthToken(token);
+      setUserCache(user);
+
       setUser(user);
       setIsAdmin(user?.role === "admin");
+
       toast.success("تم تسجيل الدخول بنجاح ✅");
       navigate("/");
     } catch (err) {
       console.error("LOGIN ERROR:", err?.response?.data || err.message);
+
       if (err.response?.data?.message) {
         toast.error(translateServerMessage(err.response.data.message));
       } else if (err.response?.data?.errors) {
         const errorMessages = Object.values(err.response.data.errors)
-          .map(msg => `⚠ ${translateServerMessage(msg)}`)
+          .map((msg) => `⚠ ${translateServerMessage(msg)}`)
           .join(" | ");
         toast.error(`الحقول غير صحيحة: ${errorMessages}`);
       } else {
@@ -65,18 +63,15 @@ export default function Login({ setUser, setIsAdmin }) {
 
   const handleGoogleLogin = () => {
     const apiBase = process.env.REACT_APP_API_BASE_URL;
-    if (!apiBase) {
-      toast.error("الرابط غير مضبوط. تحقق من ملف .env");
-      return;
-    }
+    if (!apiBase) return toast.error("الرابط غير مضبوط. تحقق من ملف .env");
+
     const googleAuthWindow = window.open(
       `${apiBase}/auth/google`,
       "_blank",
       "width=500,height=600"
     );
-    if (!googleAuthWindow) {
+    if (!googleAuthWindow)
       toast.error("لا يمكن فتح نافذة تسجيل Google. تحقق من المتصفح.");
-    }
   };
 
   return (
@@ -91,7 +86,10 @@ export default function Login({ setUser, setIsAdmin }) {
 
         {/* البريد الإلكتروني */}
         <div className="mb-4">
-          <label htmlFor="email" className="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">
+          <label
+            htmlFor="email"
+            className="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300"
+          >
             البريد الإلكتروني
           </label>
           <input
@@ -107,7 +105,10 @@ export default function Login({ setUser, setIsAdmin }) {
 
         {/* كلمة المرور */}
         <div className="mb-6">
-          <label htmlFor="password" className="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">
+          <label
+            htmlFor="password"
+            className="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300"
+          >
             كلمة المرور
           </label>
           <input
@@ -130,7 +131,9 @@ export default function Login({ setUser, setIsAdmin }) {
           {loading ? "جاري الدخول..." : "تسجيل الدخول"}
         </button>
 
-        <div className="text-center my-3 text-sm text-gray-600 dark:text-gray-400">أو</div>
+        <div className="text-center my-3 text-sm text-gray-600 dark:text-gray-400">
+          أو
+        </div>
 
         {/* تسجيل Google */}
         <button
@@ -145,7 +148,10 @@ export default function Login({ setUser, setIsAdmin }) {
         <div className="text-center mt-6 text-sm space-y-2">
           <p className="text-gray-600 dark:text-gray-400">
             ليس لديك حساب؟
-            <Link to="/register" className="font-semibold text-blue-500 hover:underline mr-1">
+            <Link
+              to="/register"
+              className="font-semibold text-blue-500 hover:underline mr-1"
+            >
               سجل الآن
             </Link>
           </p>
