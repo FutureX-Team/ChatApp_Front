@@ -21,6 +21,20 @@ export default function App() {
   // 🌙 الوضع المظلم
   const [darkMode, setDarkMode] = useState(() => localStorage.getItem("theme") === "dark");
 
+  // 🔑 Issue a guest token if none exists
+useEffect(() => {
+  const { token } = rehydrateAuth();
+  if (!token) {
+    api.post("guest/ensure").then(({ data }) => {
+      setAuthToken(data.token);     // Authorization: Bearer ...
+      setUserCache(data.guest);     // { id, nickname }
+    }).catch(() => {
+      // optional: toast error
+    }).finally(() => setAuthLoading(false));
+  }
+}, []);
+
+
   useEffect(() => {
     const root = window.document.documentElement;
     if (darkMode) {

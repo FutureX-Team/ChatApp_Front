@@ -4,6 +4,9 @@ import Tweet from "../components/Tweet";
 import Modal from "../components/Modal";
 import { Plus } from "lucide-react";
 import api from "../api/api";
+import React from 'react';
+
+import { Fragment } from 'react';
 
 const normalize = (res) =>
   Array.isArray(res.data) ? res.data : (res.data?.data ?? res.data);
@@ -26,29 +29,30 @@ export default function Home({ user, tweets, setTweets }) {
         setLoading(true);
 
         if (!places.length) {
-        const re = await api.get("/places");
-        const list = Array.isArray(re.data) ? re.data : (re.data?.data ?? []);
-        setPlaces(list);
-      }
-       if (selectedPlaceId === "default") {
-         setSelectedPlaceId("14"); // معرف المكان الافتراضي (عام)
-       }
+          const re = await api.get("/places");
+          const list = Array.isArray(re.data) ? re.data : (re.data?.data ?? []);
+          setPlaces(list);
+        }
+        if (selectedPlaceId === "default") {
+          setSelectedPlaceId("14"); // معرف المكان الافتراضي (عام)
+        }
         const res = await api.get("/tweets/filter", {
-        signal: ac.signal,
-        params: { place_id: selectedPlaceId || undefined }, // undefined يحذف البارام لو "الجميع"
-      });const list = Array.isArray(res.data) ? res.data : (res.data?.data ?? []);
-      setTweets(list);
-    } catch (e) {
-      if (e.name !== "CanceledError") {
-        console.error(e);
-        setError("تعذر تحميل التغريدات.");
+          signal: ac.signal,
+          params: { place_id: selectedPlaceId || undefined }, // undefined يحذف البارام لو "الجميع"
+        });
+        const list = Array.isArray(res.data) ? res.data : (res.data?.data ?? []);
+        setTweets(list);
+      } catch (e) {
+        if (e.name !== "CanceledError") {
+          console.error(e);
+          setError("تعذر تحميل التغريدات.");
+        }
+      } finally {
+        if (!ac.signal.aborted) setLoading(false);
       }
-    } finally {
-      if (!ac.signal.aborted) setLoading(false);
-    }
-  })();
-  return () => ac.abort();
-}, [selectedPlaceId, setTweets, places.length]);
+    })();
+    return () => ac.abort();
+  }, [selectedPlaceId, setTweets, places.length]);
 
   const addTweet = useCallback(
     async (payload) => {
@@ -116,18 +120,18 @@ export default function Home({ user, tweets, setTweets }) {
               id="place-list"
               value={selectedPlaceId}
               onChange={(e) => setSelectedPlaceId(e.target.value)}
-
               className="border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg p-2 focus:ring-2 focus:ring-blue-400 focus:outline-none"
-
-         
-
             >
               <option value="default">عام</option>
-  {places.map(p => {
-    if (p.id===14) return null; // تخطي "عام" لأنه معرف افتراضي
-    return <option key={p.id} value={p.id}>{p.location_name}</option>;
-  })}
-</select>
+              {places.map((p) => {
+                if (p.id === 14) return null; // تخطي "عام" لأنه معرف افتراضي
+                return (
+                  <option key={p.id} value={p.id}>
+                    {p.location_name}
+                  </option>
+                );
+              })}
+            </select>
           </div>
         </div>
       </div>
@@ -139,15 +143,22 @@ export default function Home({ user, tweets, setTweets }) {
 
       {!loading && (
         <div className="space-y-4">
-          {(tweets || []).map((tweet) => (
-            <Tweet
-                key={tweet.id} 
-              tweet={tweet}
-              currentUser={user}
-              onReply={() =>
-                navigate(`/tweet/${tweet.id}`, { state: { openReply: true } })
+          {(tweets ?? []).map((t, i) => (
+            <Fragment
+              key={
+                t.id ??
+                `${t.user_id ?? t.guest_id ?? "unknown"}-${t.created_at ?? i}-${i}`
               }
-            />
+            >
+              <Tweet
+                tweet={t}
+                currentUser={user}
+                onReply={() =>
+                  navigate(`/tweet/${t.id}`, { state: { openReply: true } })
+                }
+              />
+              <hr />
+            </Fragment>
           ))}
         </div>
       )}
