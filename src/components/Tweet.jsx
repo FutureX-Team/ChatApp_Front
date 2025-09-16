@@ -169,21 +169,30 @@ export default function Tweet({ tweet, currentUser, onReply, onDelete }) {
     return d.toLocaleString("ar-SA", { hour12: false });
   };
 
-  const handleDelete = async (e) => {
-    e.stopPropagation();
-    setDropdownOpen(false);
-    if (!canDelete) return;
 
-    if (!window.confirm("هل أنت متأكد من حذف التغريدة؟ الإجراء غير قابل للتراجع.")) return;
 
-    try {
-      await api.delete(`/tweets/${tweet.id}`);
-      onDelete?.(tweet.id);
-    } catch (err) {
-      console.error(err);
-      alert("تعذّر حذف التغريدة");
-    }
-  };
+const handleDelete = async (e) => {
+  e.stopPropagation();
+  setDropdownOpen(false);
+  if (!canDelete) return;
+
+  if (!window.confirm("هل أنت متأكد من حذف التغريدة؟ الإجراء غير قابل للتراجع.")) return;
+
+  try {
+    await api.delete(`/tweets/${tweet.id}`);
+    onDelete?.(tweet.id);
+
+    // ضع علامة في localStorage لعرض toast بعد التحديث
+    localStorage.setItem("tweetDeleted", "true");
+
+    // حدّث الصفحة
+    window.location.reload();
+  } catch (err) {
+    console.error(err);
+    toast.error("تعذّر حذف التغريدة");
+  }
+};
+
 
   return (
     <>
@@ -237,15 +246,20 @@ export default function Tweet({ tweet, currentUser, onReply, onDelete }) {
                       className="w-full px-4 py-2 text-red-600 hover:bg-gray-200 dark:hover:bg-gray-600 dark:hover:bg-gray-600 flex items-center gap-2"
                     >
                       <Trash2 size={16} /> حذف التغريدة
+                      
                     </button>
+                    
                   )}
+                   
+                 {currentUser.id !== tweet.user_id && (
+  <button
+    onClick={() => setShowReportModal(true)}
+    className="w-full px-4 py-2 text-red-600 hover:bg-gray-200 dark:hover:bg-gray-600 flex items-center gap-2 hover:rounded-lg"
+  >
+    <Flag size={16} /> إبلاغ عن التغريدة
+  </button>
+)}
 
-                  <button
-                    onClick={() => setShowReportModal(true)}
-                    className="w-full px-4 py-2 text-red-600 hover:bg-gray-200 dark:hover:bg-gray-600 flex items-center gap-2 hover:rounded-lg"
-                  >
-                    <Flag size={16} /> إبلاغ عن التغريدة
-                  </button>
                 </div>
               )}
             </div>

@@ -4,7 +4,7 @@ import Tweet from "../components/Tweet";
 import Modal from "../components/Modal";
 import api from "../api/api";
 import { showErrorToast } from "../utils/toast";
-import toast from "react-hot-toast"; // ✨ أضفه هنا
+import toast from "react-hot-toast"; // ✨
 
 const normalize = (res) =>
   Array.isArray(res.data) ? res.data : res.data?.data ?? res.data;
@@ -15,6 +15,15 @@ export default function TweetDetail({ user }) {
   const [loading, setLoading] = useState(true);
   const [showReplyModal, setShowReplyModal] = useState(false);
   const [replyingTo, setReplyingTo] = useState(null);
+
+  // عرض رسالة toast بعد إعادة تحميل الصفحة
+  useEffect(() => {
+    const msg = localStorage.getItem("toastMessage");
+    if (msg) {
+      toast.success(msg);
+      localStorage.removeItem("toastMessage");
+    }
+  }, []);
 
   useEffect(() => {
     const ac = new AbortController();
@@ -39,34 +48,18 @@ export default function TweetDetail({ user }) {
     if (!text.trim() || !replyingTo) return;
 
     try {
-      const res = await api.post(`/tweets/${replyingTo.id}/reply`, { text });
-      let newReply = normalize(res);
-      if (!newReply.user && newReply?.id) {
-        newReply = normalize(await api.get(`/tweets/${newReply.id}`));
-      }
+      await api.post(`/tweets/${replyingTo.id}/reply`, { text });
 
-      // إنشاء نسخة جديدة من الشجرة بالكامل
-      const addReplyToTree = (t) => {
-        if (!t) return null;
-        if (t.id === replyingTo.id) {
-          return {
-            ...t,
-            replies_count: (t.replies_count ?? 0) + 1,
-            replies: [newReply, ...(t.replies ?? [])].map((r) => ({ ...r })), // نسخة جديدة لكل عنصر
-          };
-        }
-        return { ...t, replies: (t.replies ?? []).map(addReplyToTree) };
-      };
+      // تخزين رسالة النجاح مؤقتًا قبل إعادة تحميل الصفحة
+      localStorage.setItem("toastMessage", "تم إرسال الرد بنجاح ✅");
 
-      setTweet((prev) => ({ ...addReplyToTree(prev) })); // **نسخة جديدة للتغريدة كلها**
-
-      setShowReplyModal(false);
-      setReplyingTo(null);
-      toast.success("تم إرسال الرد بنجاح ✅");
+      // إعادة تحميل الصفحة
+      window.location.reload();
     } catch (err) {
       showErrorToast(err, "فشل إرسال الرد. الرجاء المحاولة مرة أخرى.");
     }
   };
+
   const handleDelete = (tweetId) => {
     setTweet((prev) => {
       const remove = (t) =>
@@ -118,7 +111,6 @@ export default function TweetDetail({ user }) {
             setShowReplyModal(true);
           }}
           onDelete={handleDelete}
-          onClick={() => {}}
         />
       ))}
     </div>

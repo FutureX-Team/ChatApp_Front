@@ -5,8 +5,12 @@ import Modal from "../components/Modal";
 import { Plus } from "lucide-react";
 import api from "../api/api";
 import React from 'react';
+import toast from "react-hot-toast";
+
 
 import { Fragment } from 'react';
+
+
 
 const normalize = (res) =>
   Array.isArray(res.data) ? res.data : (res.data?.data ?? res.data);
@@ -16,10 +20,24 @@ export default function Home({ user, tweets, setTweets }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const navigate = useNavigate();
+  
 
   // ✅ أماكن ككائنات + معرف المكان المحدد
   const [places, setPlaces] = useState([]);
   const [selectedPlaceId, setSelectedPlaceId] = useState("14"); // معرف المكان الافتراضي
+
+  useEffect(() => {
+  if (localStorage.getItem("tweetAdded")) {
+    toast.success("تم إرسال المنشور بنجاح ✅");
+    localStorage.removeItem("tweetAdded");
+  }
+}, []);
+useEffect(() => {
+  if (localStorage.getItem("tweetDeleted")) {
+    toast.success("تم حذف التغريدة بنجاح 🗑️");
+    localStorage.removeItem("tweetDeleted");
+  }
+}, []);
 
   useEffect(() => {
     const ac = new AbortController();
@@ -79,16 +97,18 @@ export default function Home({ user, tweets, setTweets }) {
           created = normalize(full);
         }
 
-        setTweets((prev) => [created, ...(prev || [])]);
-        setShowModal(false);
+localStorage.setItem("tweetAdded", "true");
+window.location.reload();
+
       } catch (e) {
         if (e?.response?.status === 401 || e?.response?.status === 419) {
-          alert("يلزم تسجيل الدخول لنشر تغريدة.");
+          toast.error("يلزم تسجيل الدخول لنشر تغريدة.");
+
           navigate("/login");
           return;
         }
         console.error(e);
-        alert("فشل نشر التغريدة.");
+        toast.error("فشل نشر التغريدة.");
       }
     },
     [setTweets, navigate, selectedPlaceId]
@@ -157,7 +177,7 @@ export default function Home({ user, tweets, setTweets }) {
                   navigate(`/tweet/${t.id}`, { state: { openReply: true } })
                 }
               />
-              <hr />
+              
             </Fragment>
           ))}
         </div>
