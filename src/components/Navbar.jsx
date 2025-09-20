@@ -1,13 +1,15 @@
 import { useState, useEffect, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Home, Sun, Moon, LogIn, Headphones } from "lucide-react"; // أضفنا أيقونة السماعة
+import { Home, Sun, Moon, LogIn, Headphones } from "lucide-react"; 
 import Avatar from "./Avatar";
 import api from "../api/api";
+import toast from "react-hot-toast";  
+
 
 export default function Navbar({ user, isAdmin, darkMode, setDarkMode, onLogout }) {
   const [dropdownOpen, setDropdownOpen] = useState(false);
-  const [supportOpen, setSupportOpen] = useState(false); // حالة النافذة المنبثقة للدعم
-  const [supportMessage, setSupportMessage] = useState(""); // رسالة الدعم
+  const [supportOpen, setSupportOpen] = useState(false);
+  const [supportMessage, setSupportMessage] = useState("");
   const dropdownRef = useRef(null);
   const navigate = useNavigate();
 
@@ -23,7 +25,7 @@ export default function Navbar({ user, isAdmin, darkMode, setDarkMode, onLogout 
       alert("الرجاء كتابة رسالتك للدعم.");
       return;
     }
-     try {
+    try {
       const payload = {
         username: user?.username || "غير معروف",
         email: user?.email || "no-email@example.com",
@@ -33,11 +35,11 @@ export default function Navbar({ user, isAdmin, darkMode, setDarkMode, onLogout 
       console.log("تم حفظ التذكرة:", data);
       setSupportMessage("");
       setSupportOpen(false);
-      alert("✅ تم إرسال رسالتك للدعم بنجاح");
+      toast.success("✅ تم إرسال رسالتك للدعم بنجاح");
     } catch (err) {
       console.error("خطأ أثناء الإرسال:", err?.response?.data || err.message);
-     alert("❌ تعذّر إرسال الرسالة، حاول لاحقًا");
-   }
+        toast.error("❌ تعذّر إرسال الرسالة، حاول لاحقًا");
+    }
   };
 
   useEffect(() => {
@@ -51,6 +53,9 @@ export default function Navbar({ user, isAdmin, darkMode, setDarkMode, onLogout 
       document.removeEventListener("mousedown", handleClickOutside);
     };
   }, [dropdownRef]);
+
+  // تحقق: إذا ما عنده ايميل ولا يوزرنيم => نعتبره ضيف
+  const isRealUser = user && (user.email || user.username);
 
   return (
     <nav className="bg-white dark:bg-gray-800 shadow-md sticky top-0 z-50">
@@ -70,7 +75,10 @@ export default function Navbar({ user, isAdmin, darkMode, setDarkMode, onLogout 
           </button>
 
           {/* زر الوضع المظلم */}
-          <button onClick={() => setDarkMode(!darkMode)} className="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700">
+          <button 
+            onClick={() => setDarkMode(!darkMode)} 
+            className="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700"
+          >
             {darkMode ? <Sun size={20} /> : <Moon size={20} />}
           </button>
 
@@ -80,22 +88,24 @@ export default function Navbar({ user, isAdmin, darkMode, setDarkMode, onLogout 
             </Link>
           )}
 
-          <div className="flex items-center gap-4 " ref={dropdownRef}>
-            {user ? (
+          <div className="flex items-center gap-4" ref={dropdownRef}>
+            {isRealUser ? (
+              // مستخدم حقيقي
               <div className="cursor-pointer" onClick={() => setDropdownOpen(prev => !prev)}>
                 <Avatar name={user.username || user.name} url={user.avatar_url} />
               </div>
             ) : (
+              // ضيف أو مو مسجل
               <Link 
                 to="/login" 
                 className="p-1 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700"
                 title="تسجيل الدخول"
               >
-                <LogIn className=" text-gray-700 dark:text-gray-200" />
+                <LogIn className="text-gray-700 dark:text-gray-200" />
               </Link>
             )}
 
-            {user && dropdownOpen && (
+            {isRealUser && dropdownOpen && (
               <div 
                 className="absolute left-0 mt-2 bg-white dark:bg-gray-700 shadow-xl rounded-lg z-50 overflow-hidden"
                 style={{ width: '12rem', transform: 'translate(10px, 86px)' }} 
@@ -123,13 +133,13 @@ export default function Navbar({ user, isAdmin, darkMode, setDarkMode, onLogout 
         </div>
       </div>
 
-      {/* نافذة الدعم الفني المنبثقة */}
+      {/* نافذة الدعم الفني */}
       {supportOpen && (
         <div className="fixed inset-0 flex items-center justify-center z-50 bg-black/40">
           <div className={`bg-white dark:bg-gray-800 p-6 rounded-xl w-full max-w-md shadow-lg`}>
             <h3 className="text-lg font-bold mb-4 text-gray-800 dark:text-white">الدعم الفني</h3>
             <p className="mb-2 text-gray-700 dark:text-gray-300">
-              المستخدم: {user?.username || "غير معروف"}
+              المستخدم: {user?.username || "ضيف "}
             </p>
             {user?.email && (
               <p className="mb-2 text-gray-700 dark:text-gray-300">
